@@ -7,6 +7,14 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught Exception:", err);
+});
+
+process.on("unhandledRejection", (err) => {
+  console.error("Unhandled Rejection:", err);
+});
+
 async function startServer() {
   const host = "0.0.0.0";
   const port = Number(process.env.PORT) || 3000;
@@ -65,13 +73,27 @@ async function startServer() {
   });
 
   console.log("[startup] Calling server.listen(%d, %s)…", port, host);
-  server.listen(port, host, () => {
-    console.log(`Server running on ${host}:${port}`);
-    console.log("[startup] Ready — health: http://%s:%d/health", host, port);
+
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", (err: Error) => {
+      reject(err);
+    });
+    server.listen(port, host, () => {
+      console.log(`Server running on ${host}:${port}`);
+      console.log("[startup] Ready — health: http://%s:%d/health", host, port);
+      resolve();
+    });
   });
+
+  // HTTP server has an active listener; Node keeps the process alive from here.
+  // startServer() returns after listen succeeds; no process.exit on success.
 }
 
-startServer().catch((err) => {
-  console.error("[startup] FATAL: could not start server:", err);
-  process.exit(1);
-});
+(async () => {
+  try {
+    await startServer();
+  } catch (err) {
+    console.error("Startup error:", err);
+    process.exit(1);
+  }
+})();
