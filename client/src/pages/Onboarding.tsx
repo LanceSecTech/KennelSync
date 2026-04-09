@@ -1,0 +1,554 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useLocation } from "wouter";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Progress } from "@/components/ui/progress";
+import { trpc } from "@/lib/trpc";
+import { useKennel } from "@/contexts/KennelContext";
+import { getOnboardingState, saveOnboardingState, type AppRole, type OnboardingState } from "@/lib/onboarding";
+import { toast } from "sonner";
+
+type Props = {
+  user: { id: string; email?: string | null; role: string; kennelId?: number | null };
+  onComplete: () => void;
+};
+
+const roleSteps: Record<AppRole, string[]> = {
+  customer: ["Welcome", "Basic profile", "Link kennel", "Add first dog", "Care + vaccine notes", "Finish"],
+  employee: ["Welcome", "Basic profile", "Confirm kennel", "Tool intro", "Quick walkthroughs", "Finish"],
+  owner: [
+    "Welcome",
+    "Basic profile",
+    "Kennel profile",
+    "KennelSync plan",
+    "Services + rooms",
+    "Hours + vaccines",
+    "Finish",
+  ],
+};
+
+export default function Onboarding({ user, onComplete }: Props) {
+  const role = (["customer", "employee", "owner"].includes(user.role) ? user.role : "customer") as AppRole;
+  const [state, setState] = useState<OnboardingState>(() => {
+    return (
+      getOnboardingState(user.id) || {
+        role,
+        step: 0,
+        completed: false,
+        updatedAt: new Date().toISOString(),
+        data: {},
+      }
+    );
+  });
+  const steps = roleSteps[role];
+  const [, setLocation] = useLocation();
+  const { allKennels, linkedKennels, linkToKennel, toggleFavorite } = useKennel();
+  const utils = trpc.useUtils();
+  const saveProfile = trpc.auth.updateProfile.useMutation();
+  const createDog = trpc.dog.create.useMutation();
+  const updateDog = trpc.dog.update.useMutation();
+  const { data: myKennelsForPlan } = trpc.kennel.myKennels.useQuery(undefined, { enabled: role === "owner" });
+  const planKennelId = useMemo(() => {
+    if (role !== "owner") return null;
+    return user.kennelId ?? myKennelsForPlan?.[0]?.id ?? null;
+  }, [role, user.kennelId, myKennelsForPlan]);
+
+  const { data: billingAccess } = trpc.ownerBilling.access.useQuery(
+    { kennelId: planKennelId! },
+    { enabled: role === "owner" && state.step === 3 && planKennelId != null },
+  );
+
+  const startTrialMut = trpc.ownerBilling.startTrial.useMutation({
+    onSuccess: () => {
+      toast.success("Trial started — 7 days free");
+      void utils.ownerBilling.access.invalidate();
+      setState((prev) => ({
+        ...prev,
+        step: Math.min(prev.step + 1, roleSteps.owner.length - 1),
+        updatedAt: new Date().toISOString(),
+      }));
+    },
+    onError: (e) => toast.error(e.message || "Could not start trial"),
+  });
+
+  const subscriptionCheckoutMut = trpc.ownerBilling.createSubscriptionCheckout.useMutation({
+    onError: (e) => toast.error(e.message || "Could not start checkout"),
+  });
+
+  const subscriptionReturnHandled = useRef(false);
+  useEffect(() => {
+    if (typeof window === "undefined" || role !== "owner") return;
+    if (subscriptionReturnHandled.current) return;
+    const sp = new URLSearchParams(window.location.search);
+    if (sp.get("subscription") !== "success") return;
+    subscriptionReturnHandled.current = true;
+    sp.delete("subscription");
+    const q = sp.toString();
+    window.history.replaceState({}, "", window.location.pathname + (q ? `?${q}` : ""));
+    toast.success("Subscription activated");
+    void utils.ownerBilling.access.invalidate();
+    setState((prev) =>
+      prev.step === 3 ? { ...prev, step: 4, updatedAt: new Date().toISOString() } : prev,
+    );
+  }, [role, utils.ownerBilling.access]);
+
+  useEffect(() => {
+    saveOnboardingState(user.id, state);
+  }, [user.id, state]);
+
+  const pct = ((state.step + 1) / steps.length) * 100;
+
+  function updateData(patch: Record<string, unknown>) {
+    setState((prev) => ({
+      ...prev,
+      updatedAt: new Date().toISOString(),
+      data: { ...prev.data, ...patch },
+    }));
+  }
+
+  function next() {
+    setState((prev) => ({ ...prev, step: Math.min(prev.step + 1, steps.length - 1), updatedAt: new Date().toISOString() }));
+  }
+
+  function back() {
+    setState((prev) => ({ ...prev, step: Math.max(prev.step - 1, 0), updatedAt: new Date().toISOString() }));
+  }
+
+  function finish() {
+    const completedState = { ...state, step: steps.length - 1, completed: true, updatedAt: new Date().toISOString() };
+    setState(completedState);
+    saveOnboardingState(user.id, completedState);
+    onComplete();
+    setLocation("/app");
+  }
+
+  async function handleContinue() {
+    if (role === "customer" && state.step === 1) {
+      const name = String(state.data.fullName || "").trim();
+      const phone = String(state.data.phone || "").trim();
+      if (!name && !phone) {
+        next();
+        return;
+      }
+      try {
+        await saveProfile.mutateAsync({
+          name: name || undefined,
+          phone: phone || undefined,
+        });
+      } catch (err: any) {
+        toast.error(err?.message || "Failed to save profile");
+        return;
+      }
+    }
+
+    if (role === "customer" && state.step === 4) {
+      const dogId = Number(state.data.createdDogId || 0);
+      if (dogId > 0) {
+        try {
+          await updateDog.mutateAsync({
+            id: dogId,
+            feedingInstructions: String(state.data.feeding || "") || undefined,
+            medications: String(state.data.meds || "") || undefined,
+            behaviorNotes: String(state.data.behavior || "") || undefined,
+            emergencyContactName: String(state.data.emergencyName || "") || undefined,
+            emergencyContactPhone: String(state.data.emergencyPhone || "") || undefined,
+            vetName: String(state.data.vetName || "") || undefined,
+            vetPhone: String(state.data.vetPhone || "") || undefined,
+          });
+          await utils.dog.myDogs.invalidate();
+        } catch (err: any) {
+          toast.error(err?.message || "Failed to save dog care details");
+          return;
+        }
+      }
+    }
+
+    next();
+  }
+
+  return (
+    <div className="mx-auto max-w-3xl p-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>{role.charAt(0).toUpperCase() + role.slice(1)} onboarding</CardTitle>
+          <p className="text-sm text-slate-600">{steps[state.step]}</p>
+          <Progress value={pct} className="mt-2" />
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <OnboardingStep
+            role={role}
+            step={state.step}
+            data={state.data}
+            email={user.email ?? ""}
+            kennelId={user.kennelId ?? null}
+            ownerPlanKennelId={planKennelId}
+            ownerPlanLoading={
+              startTrialMut.isPending ||
+              subscriptionCheckoutMut.isPending ||
+              (state.step === 3 && planKennelId != null && billingAccess == null)
+            }
+            onOwnerStartSubscription={async () => {
+              if (planKennelId == null) return;
+              const r = await subscriptionCheckoutMut.mutateAsync({
+                kennelId: planKennelId,
+                origin: typeof window !== "undefined" ? window.location.origin : "",
+              });
+              if (r.url) window.location.href = r.url;
+            }}
+            onOwnerSkipTrial={() => {
+              if (planKennelId == null) return;
+              startTrialMut.mutate({ kennelId: planKennelId });
+            }}
+            allKennels={allKennels}
+            linkedKennels={linkedKennels}
+            updateData={updateData}
+            linkToKennel={linkToKennel}
+            toggleFavorite={toggleFavorite}
+            createDog={createDog}
+            onAdvance={next}
+          />
+          <div className="flex items-center justify-between pt-2">
+            <Button variant="outline" onClick={back} disabled={state.step === 0}>Back</Button>
+            {state.step < steps.length - 1 ? (
+              <div className="flex flex-wrap gap-2 justify-end items-center">
+                {role === "owner" && state.step === 3 ? (
+                  planKennelId != null && billingAccess === undefined ? (
+                    <span className="text-xs text-slate-500">Checking plan…</span>
+                  ) : billingAccess?.hasAccess ? (
+                    <Button onClick={next}>Continue</Button>
+                  ) : (
+                    <p className="text-xs text-slate-500 max-w-xs text-right">
+                      Subscribe or start your free trial on this step, then tap Continue.
+                    </p>
+                  )
+                ) : (
+                  <>
+                    <Button variant="ghost" onClick={next}>Skip for now</Button>
+                    <Button onClick={handleContinue} disabled={saveProfile.isPending || updateDog.isPending}>
+                      {saveProfile.isPending || updateDog.isPending ? "Saving..." : "Continue"}
+                    </Button>
+                  </>
+                )}
+              </div>
+            ) : (
+              <Button onClick={finish}>Go to dashboard</Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function OnboardingStep(props: {
+  role: AppRole;
+  step: number;
+  data: Record<string, unknown>;
+  email: string;
+  kennelId: number | null;
+  ownerPlanKennelId: number | null;
+  ownerPlanLoading: boolean;
+  onOwnerStartSubscription: () => Promise<void>;
+  onOwnerSkipTrial: () => void;
+  allKennels: { id: number; name: string }[];
+  linkedKennels: { id: number; name: string; isFavorite?: boolean }[];
+  updateData: (patch: Record<string, unknown>) => void;
+  linkToKennel: (kennelId: number) => Promise<void>;
+  toggleFavorite: (kennelId: number) => Promise<void>;
+  createDog: any;
+  onAdvance: () => void;
+}) {
+  const {
+    role,
+    step,
+    data,
+    email,
+    kennelId,
+    ownerPlanKennelId,
+    ownerPlanLoading,
+    onOwnerStartSubscription,
+    onOwnerSkipTrial,
+    allKennels,
+    linkedKennels,
+    updateData,
+    linkToKennel,
+    toggleFavorite,
+    createDog,
+    onAdvance,
+  } = props;
+  const [selectedKennelId, setSelectedKennelId] = useState<string>("");
+  const [, setLocation] = useLocation();
+
+  const content = useMemo(() => {
+    if (step === 0) {
+      return <p className="text-sm text-slate-700">Welcome. This setup will help tailor the app to your {role} workflow.</p>;
+    }
+
+    if (step === 1) {
+      return (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div>
+            <Label>Full name</Label>
+            <Input value={String(data.fullName || "")} onChange={(e) => updateData({ fullName: e.target.value })} />
+          </div>
+          <div>
+            <Label>Phone</Label>
+            <Input value={String(data.phone || "")} onChange={(e) => updateData({ phone: e.target.value })} />
+          </div>
+          <div className="sm:col-span-2">
+            <Label>Email</Label>
+            <Input value={String(data.email || email)} onChange={(e) => updateData({ email: e.target.value })} />
+          </div>
+        </div>
+      );
+    }
+
+    if (role === "customer" && step === 2) {
+      return (
+        <div className="space-y-3">
+          <p className="text-sm text-slate-600">Link to a kennel and set a favorite/default.</p>
+          <Select value={selectedKennelId} onValueChange={setSelectedKennelId}>
+            <SelectTrigger><SelectValue placeholder="Choose kennel" /></SelectTrigger>
+            <SelectContent>
+              {allKennels.map((k) => <SelectItem key={k.id} value={String(k.id)}>{k.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              onClick={async () => {
+                const id = Number(selectedKennelId);
+                if (!id) {
+                  toast.error("Select a kennel first");
+                  return;
+                }
+                try {
+                  await linkToKennel(id);
+                  updateData({ selectedKennelId: id });
+                  toast.success("Kennel linked");
+                } catch (err: any) {
+                  toast.error(err?.message || "Failed to link kennel");
+                }
+              }}
+            >
+              Link kennel
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={async () => {
+                const id = Number(selectedKennelId);
+                if (!id) {
+                  toast.error("Select a kennel first");
+                  return;
+                }
+                try {
+                  await toggleFavorite(id);
+                  updateData({ favoriteKennelId: id });
+                  toast.success("Favorite updated");
+                } catch (err: any) {
+                  toast.error(err?.message || "Failed to update favorite");
+                }
+              }}
+            >
+              Set favorite
+            </Button>
+          </div>
+          {linkedKennels.length ? (
+            <p className="text-xs text-slate-500">Linked: {linkedKennels.map((k) => k.name).join(", ")}</p>
+          ) : null}
+        </div>
+      );
+    }
+
+    if (role === "customer" && step === 3) {
+      return (
+        <div className="space-y-3">
+          <p className="text-sm text-slate-600">Add your first dog now, or skip and do it later.</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div><Label>Name</Label><Input value={String(data.dogName || "")} onChange={(e) => updateData({ dogName: e.target.value })} /></div>
+            <div><Label>Breed</Label><Input value={String(data.dogBreed || "")} onChange={(e) => updateData({ dogBreed: e.target.value })} /></div>
+            <div><Label>Age</Label><Input type="number" value={String(data.dogAge || "")} onChange={(e) => updateData({ dogAge: e.target.value })} /></div>
+            <div><Label>Weight</Label><Input type="number" value={String(data.dogWeight || "")} onChange={(e) => updateData({ dogWeight: e.target.value })} /></div>
+            <div><Label>Birthday</Label><Input type="date" value={String(data.dogBirthday || "")} onChange={(e) => updateData({ dogBirthday: e.target.value })} /></div>
+            <div>
+              <Label>Sex</Label>
+              <Select value={(data.dogSex as string | undefined) || undefined} onValueChange={(v) => updateData({ dogSex: v })}>
+                <SelectTrigger><SelectValue placeholder="Select sex" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="male">Male</SelectItem>
+                  <SelectItem value="female">Female</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Spayed / Neutered</Label>
+              <Select value={typeof data.dogSpayedNeutered === "boolean" ? String(data.dogSpayedNeutered) : undefined} onValueChange={(v) => updateData({ dogSpayedNeutered: v === "true" })}>
+                <SelectTrigger><SelectValue placeholder="Select option" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="true">Yes</SelectItem>
+                  <SelectItem value="false">No</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <Button
+            type="button"
+            disabled={createDog.isPending}
+            onClick={async () => {
+              const name = String(data.dogName || "").trim();
+              if (!name) {
+                toast.error("Dog name is required");
+                return;
+              }
+              try {
+                const created = await createDog.mutateAsync({
+                  name,
+                  breed: String(data.dogBreed || "") || undefined,
+                  age: data.dogAge ? Number(data.dogAge) : undefined,
+                  weight: data.dogWeight ? Number(data.dogWeight) : undefined,
+                  birthday: String(data.dogBirthday || "") || undefined,
+                  sex: (data.dogSex as "male" | "female" | undefined) || undefined,
+                  isSpayedNeutered: Boolean(data.dogSpayedNeutered),
+                });
+                updateData({ createdDogId: created.id, dogCreated: true });
+                toast.success("Dog created successfully");
+                onAdvance();
+              } catch (err: any) {
+                toast.error(err?.message || "Failed to create dog");
+              }
+            }}
+          >
+            {createDog.isPending ? "Creating..." : "Create Dog"}
+          </Button>
+          {Number(data.createdDogId || 0) > 0 ? (
+            <p className="text-xs text-emerald-700">Dog saved (ID: {String(data.createdDogId)}). You can continue.</p>
+          ) : null}
+        </div>
+      );
+    }
+
+    if (role === "customer" && step === 4) {
+      return (
+        <div className="space-y-3">
+          <p className="text-sm text-slate-600">Record important care details. You can edit these later in dog profiles.</p>
+          <Label>Feeding instructions</Label>
+          <Input value={String(data.feeding || "")} onChange={(e) => updateData({ feeding: e.target.value })} />
+          <Label>Medications</Label>
+          <Input value={String(data.meds || "")} onChange={(e) => updateData({ meds: e.target.value })} />
+          <Label>Behavior / care notes</Label>
+          <Input value={String(data.behavior || "")} onChange={(e) => updateData({ behavior: e.target.value })} />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <Label>Emergency contact name</Label>
+              <Input value={String(data.emergencyName || "")} onChange={(e) => updateData({ emergencyName: e.target.value })} />
+            </div>
+            <div>
+              <Label>Emergency contact phone</Label>
+              <Input value={String(data.emergencyPhone || "")} onChange={(e) => updateData({ emergencyPhone: e.target.value })} />
+            </div>
+            <div>
+              <Label>Vet name</Label>
+              <Input value={String(data.vetName || "")} onChange={(e) => updateData({ vetName: e.target.value })} />
+            </div>
+            <div>
+              <Label>Vet phone</Label>
+              <Input value={String(data.vetPhone || "")} onChange={(e) => updateData({ vetPhone: e.target.value })} />
+            </div>
+          </div>
+          <p className="text-xs text-slate-500">Vaccination upload can be completed from your dog profile anytime.</p>
+        </div>
+      );
+    }
+
+    if (role === "employee" && step === 2) {
+      return (
+        <div className="space-y-2">
+          <p className="text-sm text-slate-700">Confirm kennel association before operational tasks.</p>
+          <p className="text-sm">Current kennel: <span className="font-medium">{kennelId ? `#${kennelId}` : "Not linked yet"}</span></p>
+        </div>
+      );
+    }
+
+    if (role === "employee" && (step === 3 || step === 4)) {
+      return (
+        <div className="space-y-2 text-sm text-slate-700">
+          <p>Core tools: Dashboard, Today, Check-In/Out, Rooms, Dogs.</p>
+          <p>Optional walkthroughs: room assignment, vaccine warning flows, and alert handling.</p>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setLocation("/today")}>Open Today</Button>
+            <Button variant="outline" onClick={() => setLocation("/checkin")}>Open Check-In/Out</Button>
+          </div>
+        </div>
+      );
+    }
+
+    if (role === "owner" && step === 2) {
+      return (
+        <div className="space-y-2 text-sm text-slate-700">
+          <p>Set up kennel profile details: name, address, phone, email, and bio.</p>
+          <Button variant="outline" onClick={() => setLocation("/kennel")}>Open Kennel Profile</Button>
+        </div>
+      );
+    }
+
+    if (role === "owner" && step === 3) {
+      if (ownerPlanKennelId == null) {
+        return (
+          <div className="space-y-3 text-sm text-slate-700">
+            <p className="text-amber-800">Create your kennel first, then come back to choose a plan.</p>
+            <Button variant="outline" onClick={() => setLocation("/kennel")}>Open Kennel Profile</Button>
+          </div>
+        );
+      }
+      return (
+        <div className="space-y-4 text-sm text-slate-700">
+          <p>Start your kennel with a free trial or subscribe now.</p>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button
+              type="button"
+              disabled={ownerPlanLoading}
+              onClick={() => void onOwnerStartSubscription()}
+            >
+              Start Subscription
+            </Button>
+            <Button type="button" variant="outline" disabled={ownerPlanLoading} onClick={onOwnerSkipTrial}>
+              Skip for now
+            </Button>
+          </div>
+          <p className="text-xs text-slate-500">
+            &quot;Skip for now&quot; starts a 7-day trial. You can upgrade anytime from the dashboard or Settings.
+          </p>
+        </div>
+      );
+    }
+
+    if (role === "owner" && step === 4) {
+      return (
+        <div className="space-y-2 text-sm text-slate-700">
+          <p>Next, configure services and room layout/buildings.</p>
+          <Button variant="outline" onClick={() => setLocation("/rooms")}>Open Rooms</Button>
+        </div>
+      );
+    }
+
+    if (role === "owner" && step === 5) {
+      return (
+        <div className="space-y-2 text-sm text-slate-700">
+          <p>Set business hours and required vaccines, then review key tools.</p>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setLocation("/settings")}>Open Settings</Button>
+            <Button variant="outline" onClick={() => setLocation("/reports")}>Open Reports</Button>
+          </div>
+        </div>
+      );
+    }
+
+    return <p className="text-sm text-slate-700">You are all set. Complete onboarding to continue to your dashboard.</p>;
+  }, [step, role, data, email, kennelId, ownerPlanKennelId, ownerPlanLoading, onOwnerStartSubscription, onOwnerSkipTrial, allKennels, linkedKennels, selectedKennelId, setLocation, updateData, linkToKennel, toggleFavorite, createDog, onAdvance]);
+
+  return content;
+}
