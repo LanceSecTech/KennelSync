@@ -49,9 +49,11 @@ export async function handleStripeWebhook(req: Request, res: Response) {
   }
 
   try {
+    console.log(`[Stripe webhook] ${event.type}`);
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
+
         if (session.mode === "subscription" && session.metadata?.checkout_flow === "owner_subscription") {
           const kennelId = parseInt(String(session.metadata.kennel_id || ""), 10);
           if (!Number.isNaN(kennelId) && kennelId > 0) {
@@ -87,12 +89,26 @@ export async function handleStripeWebhook(req: Request, res: Response) {
         const customerId = session.metadata?.customer_id;
         const kennelId = session.metadata?.kennel_id ? parseInt(session.metadata.kennel_id, 10) : null;
         const amount = session.amount_total ? session.amount_total / 100 : 0;
+        const flow = session.metadata?.checkout_flow;
+        const isBookingCheckout =
+          session.mode === "payment" &&
+          bookingId &&
+          customerId &&
+          kennelId &&
+          (flow === "booking" || flow == null || flow === "");
 
-        if (bookingId && customerId && kennelId) {
-          await db.createPayment(bookingId, customerId, kennelId, amount, session.id);
+        if (isBookingCheckout) {
+          const existing = await db.getPaymentByStripeSessionId(session.id);
+          if (!existing) {
+            await db.createPayment(bookingId, customerId, kennelId, amount, session.id);
+            console.log(`[Stripe webhook] payment row created bookingId=${bookingId} sessionId=${session.id}`);
+          } else {
+            console.log(`[Stripe webhook] duplicate session ${session.id}, skip payment insert`);
+          }
           await db.updateBooking(bookingId, {
             payment_status: "paid",
           });
+          console.log(`[Stripe webhook] booking marked paid bookingId=${bookingId}`);
         }
         break;
       }

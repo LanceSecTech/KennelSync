@@ -19,7 +19,7 @@ export default function Payments() {
     onSuccess: (data) => {
       if (data.url) {
         toast.info("Redirecting to Stripe checkout...");
-        window.open(data.url, '_blank');
+        window.location.assign(data.url);
       }
     },
     onError: (err) => toast.error(err.message || "Failed to create checkout session"),
@@ -39,7 +39,7 @@ export default function Payments() {
       toast.info("Payment was cancelled.");
       window.history.replaceState({}, '', window.location.pathname);
     }
-  }, []);
+  }, [search, utils.booking.myBookings, utils.payment.balanceSummary, utils.payment.myPayments]);
 
   if (isLoading) {
     return (

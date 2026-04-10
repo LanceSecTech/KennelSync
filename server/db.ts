@@ -796,6 +796,17 @@ export async function getPaymentsByCustomerId(customerId: string) {
   return data || [];
 }
 
+/** Idempotency for Stripe Checkout: `stripe_payment_id` stores the Checkout Session id. */
+export async function getPaymentByStripeSessionId(stripePaymentId: string) {
+  const { data, error } = await supabase
+    .from('payments')
+    .select('id, booking_id')
+    .eq('stripe_payment_id', stripePaymentId)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
 export async function createPayment(bookingId: number, customerId: string, kennelId: number, amount: number, stripePaymentId: string) {
   const { data, error } = await supabase
     .from('payments')

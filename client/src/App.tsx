@@ -29,6 +29,8 @@ import DogProfile from "./pages/DogProfile";
 import BookingFlow from "./pages/BookingFlow";
 import MyStays from "./pages/MyStays";
 import Payments from "./pages/Payments";
+import PaymentSuccess from "./pages/PaymentSuccess";
+import PaymentCancel from "./pages/PaymentCancel";
 
 // Owner pages
 import OwnerDashboard from "./pages/OwnerDashboard";
@@ -62,6 +64,8 @@ function CustomerRoutes() {
       <Route path="/book" component={BookingFlow} />
       <Route path="/stays" component={MyStays} />
       <Route path="/payments" component={Payments} />
+      <Route path="/payment/success" component={PaymentSuccess} />
+      <Route path="/payment/cancel" component={PaymentCancel} />
       <Route path="/settings" component={Settings} />
       <Route component={NotFound} />
     </Switch>

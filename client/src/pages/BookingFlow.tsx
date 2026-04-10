@@ -57,8 +57,7 @@ export default function BookingFlow() {
     onSuccess: (data) => {
       if (data.url) {
         toast.info("Redirecting to Stripe checkout...");
-        window.open(data.url, '_blank');
-        setLocation("/stays");
+        window.location.assign(data.url);
       }
     },
     onError: (err) => toast.error(err.message || "Failed to create checkout"),

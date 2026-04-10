@@ -31,7 +31,7 @@ export default function MyStays() {
     onSuccess: (data) => {
       if (data.url) {
         toast.info("Redirecting to Stripe checkout...");
-        window.open(data.url, '_blank');
+        window.location.assign(data.url);
       }
     },
     onError: (err) => toast.error(err.message || "Failed to create checkout"),

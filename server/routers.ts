@@ -1297,7 +1297,11 @@ export const appRouter = router({
         .reduce((sum: number, b: any) => sum + parseFloat(String(b.totalPrice ?? 0)), 0);
 
       const paidThisMonth = payments
-        .filter((p: any) => new Date(p.created_at) >= startOfMonth && p.status === 'completed')
+        .filter(
+          (p: any) =>
+            new Date(p.created_at) >= startOfMonth &&
+            (p.status === 'completed' || p.status === 'succeeded'),
+        )
         .reduce((sum: number, p: any) => sum + parseFloat(String(p.amount || 0)), 0);
 
       return { balanceDue, upcomingCharges, paidThisMonth };
@@ -1312,9 +1316,16 @@ export const appRouter = router({
 
       const booking = await db.getBookingById(input.bookingId);
       if (!booking) throw new TRPCError({ code: 'NOT_FOUND', message: 'Booking not found' });
+      if (booking.customerId !== ctx.user.id) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Not allowed to pay for this booking' });
+      }
 
       const amount = Math.round(parseFloat(String(booking.totalPrice ?? 0)) * 100);
       if (amount < 50) throw new TRPCError({ code: 'BAD_REQUEST', message: 'Minimum payment amount is $0.50' });
+
+      const base = String(process.env.STRIPE_CHECKOUT_APP_ORIGIN || input.origin).replace(/\/$/, '');
+      const successUrl = `${base}/payment/success?session_id={CHECKOUT_SESSION_ID}`;
+      const cancelUrl = `${base}/payment/cancel`;
 
       const session = await stripe.checkout.sessions.create({
         payment_method_types: ['card'],
@@ -1322,6 +1333,7 @@ export const appRouter = router({
         customer_email: ctx.user.email || undefined,
         client_reference_id: ctx.user.id,
         metadata: {
+          checkout_flow: 'booking',
           booking_id: String(input.bookingId),
           customer_id: ctx.user.id,
           kennel_id: String(booking.kennelId),
@@ -1336,10 +1348,14 @@ export const appRouter = router({
           },
           quantity: 1,
         }],
-        success_url: `${input.origin}/payments?payment=success`,
-        cancel_url: `${input.origin}/payments?payment=cancelled`,
+        success_url: successUrl,
+        cancel_url: cancelUrl,
         allow_promotion_codes: true,
       });
+
+      console.log(
+        `[Stripe] booking checkout session created bookingId=${input.bookingId} userId=${ctx.user.id} sessionId=${session.id}`,
+      );
 
       return { url: session.url };
     }),
