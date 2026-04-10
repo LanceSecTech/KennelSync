@@ -50,16 +50,24 @@ export default function Onboarding({ user, onComplete }: Props) {
   const saveProfile = trpc.auth.updateProfile.useMutation();
   const createDog = trpc.dog.create.useMutation();
   const updateDog = trpc.dog.update.useMutation();
-  const { data: myKennelsForPlan } = trpc.kennel.myKennels.useQuery(undefined, { enabled: role === "owner" });
+  const { data: myKennelsForPlan, isPending: myKennelsPending } = trpc.kennel.myKennels.useQuery(undefined, {
+    enabled: role === "owner",
+  });
+  /** Must match `getKennelsByOwnerId` — do not prefer `user.kennelId` alone (can be stale or another kennel). */
   const planKennelId = useMemo(() => {
     if (role !== "owner") return null;
-    return user.kennelId ?? myKennelsForPlan?.[0]?.id ?? null;
-  }, [role, user.kennelId, myKennelsForPlan]);
+    if (myKennelsPending) return null;
+    const owned = myKennelsForPlan ?? [];
+    if (owned.length === 0) return null;
+    if (user.kennelId != null && owned.some((k) => k.id === user.kennelId)) return user.kennelId;
+    return owned[0].id;
+  }, [role, myKennelsPending, myKennelsForPlan, user.kennelId]);
 
-  const { data: billingAccess } = trpc.ownerBilling.access.useQuery(
+  const billingAccessQuery = trpc.ownerBilling.access.useQuery(
     { kennelId: planKennelId! },
     { enabled: role === "owner" && state.step === 3 && planKennelId != null },
   );
+  const billingAccess = billingAccessQuery.data;
 
   const startTrialMut = trpc.ownerBilling.startTrial.useMutation({
     onSuccess: () => {
@@ -185,10 +193,19 @@ export default function Onboarding({ user, onComplete }: Props) {
             email={user.email ?? ""}
             kennelId={user.kennelId ?? null}
             ownerPlanKennelId={planKennelId}
+            ownerPlanKennelListLoading={role === "owner" && myKennelsPending}
+            ownerPlanBillingError={
+              role === "owner" && state.step === 3 && planKennelId != null && billingAccessQuery.isError
+                ? billingAccessQuery.error?.message ?? "Could not load plan"
+                : null
+            }
             ownerPlanLoading={
               startTrialMut.isPending ||
               subscriptionCheckoutMut.isPending ||
-              (state.step === 3 && planKennelId != null && billingAccess == null)
+              (state.step === 3 &&
+                planKennelId != null &&
+                !billingAccessQuery.isError &&
+                (billingAccessQuery.isPending || billingAccess === undefined))
             }
             onOwnerStartSubscription={async () => {
               if (planKennelId == null) return;
@@ -215,7 +232,13 @@ export default function Onboarding({ user, onComplete }: Props) {
             {state.step < steps.length - 1 ? (
               <div className="flex flex-wrap gap-2 justify-end items-center">
                 {role === "owner" && state.step === 3 ? (
-                  planKennelId != null && billingAccess === undefined ? (
+                  billingAccessQuery.isError ? (
+                    <span className="text-xs text-destructive max-w-xs text-right">
+                      {billingAccessQuery.error?.message ?? "Plan check failed"}
+                    </span>
+                  ) : planKennelId != null &&
+                    !billingAccessQuery.isError &&
+                    (billingAccessQuery.isPending || billingAccess === undefined) ? (
                     <span className="text-xs text-slate-500">Checking plan…</span>
                   ) : billingAccess?.hasAccess ? (
                     <Button onClick={next}>Continue</Button>
@@ -250,6 +273,8 @@ function OnboardingStep(props: {
   email: string;
   kennelId: number | null;
   ownerPlanKennelId: number | null;
+  ownerPlanKennelListLoading: boolean;
+  ownerPlanBillingError: string | null;
   ownerPlanLoading: boolean;
   onOwnerStartSubscription: () => Promise<void>;
   onOwnerSkipTrial: () => void;
@@ -268,6 +293,8 @@ function OnboardingStep(props: {
     email,
     kennelId,
     ownerPlanKennelId,
+    ownerPlanKennelListLoading,
+    ownerPlanBillingError,
     ownerPlanLoading,
     onOwnerStartSubscription,
     onOwnerSkipTrial,
@@ -496,6 +523,13 @@ function OnboardingStep(props: {
     }
 
     if (role === "owner" && step === 3) {
+      if (ownerPlanKennelListLoading) {
+        return (
+          <div className="space-y-3 text-sm text-slate-700">
+            <p className="text-slate-500">Loading your kennel…</p>
+          </div>
+        );
+      }
       if (ownerPlanKennelId == null) {
         return (
           <div className="space-y-3 text-sm text-slate-700">
@@ -506,6 +540,9 @@ function OnboardingStep(props: {
       }
       return (
         <div className="space-y-4 text-sm text-slate-700">
+          {ownerPlanBillingError ? (
+            <p className="text-sm text-destructive">{ownerPlanBillingError}</p>
+          ) : null}
           <p>Start your kennel with a free trial or subscribe now.</p>
           <div className="flex flex-col gap-2 sm:flex-row">
             <Button
@@ -548,7 +585,28 @@ function OnboardingStep(props: {
     }
 
     return <p className="text-sm text-slate-700">You are all set. Complete onboarding to continue to your dashboard.</p>;
-  }, [step, role, data, email, kennelId, ownerPlanKennelId, ownerPlanLoading, onOwnerStartSubscription, onOwnerSkipTrial, allKennels, linkedKennels, selectedKennelId, setLocation, updateData, linkToKennel, toggleFavorite, createDog, onAdvance]);
+  }, [
+    step,
+    role,
+    data,
+    email,
+    kennelId,
+    ownerPlanKennelId,
+    ownerPlanKennelListLoading,
+    ownerPlanBillingError,
+    ownerPlanLoading,
+    onOwnerStartSubscription,
+    onOwnerSkipTrial,
+    allKennels,
+    linkedKennels,
+    selectedKennelId,
+    setLocation,
+    updateData,
+    linkToKennel,
+    toggleFavorite,
+    createDog,
+    onAdvance,
+  ]);
 
   return content;
 }

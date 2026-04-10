@@ -46,6 +46,17 @@ async function assertOwnerOwnsKennelId(user: User, kennelId: number) {
   }
   const kennels = await db.getKennelsByOwnerId(user.id);
   if (!kennels.some((k: { id: number }) => k.id === kennelId)) {
+    let kennelOwnerId = "not_found";
+    try {
+      const row = await db.getKennelById(kennelId);
+      kennelOwnerId = String((row as { owner_id?: string })?.owner_id ?? "");
+    } catch {
+      kennelOwnerId = "lookup_failed";
+    }
+    const ownedIds = kennels.map((k: { id: number }) => k.id).join(",") || "none";
+    console.warn(
+      `[auth] owner kennel denied userId=${user.id} kennelId=${kennelId} kennelOwnerId=${kennelOwnerId} ownedKennelIds=[${ownedIds}]`,
+    );
     throw new TRPCError({ code: "FORBIDDEN", message: "Not authorized for this kennel" });
   }
 }
@@ -3101,6 +3112,7 @@ export const appRouter = router({
       .input(z.object({ kennelId: z.number(), origin: z.string().min(1) }))
       .mutation(async ({ ctx, input }) => {
         await assertOwnerOwnsKennelId(ctx.user, input.kennelId);
+        console.log(`[ownerBilling.checkout] userId=${ctx.user.id} kennelId=${input.kennelId}`);
         try {
           const { createOwnerSubscriptionCheckoutSession } = await import("./stripeOwnerSubscription");
           const url = await createOwnerSubscriptionCheckoutSession({
@@ -3123,6 +3135,7 @@ export const appRouter = router({
       }),
     startTrial: ownerProcedure.input(z.object({ kennelId: z.number() })).mutation(async ({ ctx, input }) => {
       await assertOwnerOwnsKennelId(ctx.user, input.kennelId);
+      console.log(`[ownerBilling.startTrial] userId=${ctx.user.id} kennelId=${input.kennelId}`);
       const row = await db.getKennelById(input.kennelId);
       const r = row as Record<string, unknown>;
       const status = String(r.subscription_status ?? r.subscriptionStatus ?? "").toLowerCase();
