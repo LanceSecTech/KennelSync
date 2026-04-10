@@ -1,4 +1,5 @@
 import "dotenv/config";
+import cors from "cors";
 import express from "express";
 import { createServer } from "http";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
@@ -15,6 +16,45 @@ process.on("unhandledRejection", (err) => {
   console.error("Unhandled Rejection:", err);
 });
 
+/** Always allowed in production when NODE_ENV is production (Vercel frontend). */
+const PRODUCTION_DEFAULT_ORIGIN = "https://kennelsync.vercel.app";
+
+/** Merge CORS_ORIGINS and ALLOWED_ORIGINS (both optional, comma-separated). */
+function readCorsAllowedOrigins(): string[] {
+  const pieces: string[] = [];
+  for (const raw of [process.env.CORS_ORIGINS, process.env.ALLOWED_ORIGINS]) {
+    if (raw == null || !String(raw).trim()) continue;
+    for (const part of String(raw).split(",")) {
+      const o = part.trim();
+      if (o) pieces.push(o);
+    }
+  }
+  const seen = new Set<string>();
+  const uniq: string[] = [];
+  for (const o of pieces) {
+    if (!seen.has(o)) {
+      seen.add(o);
+      uniq.push(o);
+    }
+  }
+  if (process.env.NODE_ENV === "production" && !seen.has(PRODUCTION_DEFAULT_ORIGIN)) {
+    uniq.push(PRODUCTION_DEFAULT_ORIGIN);
+    seen.add(PRODUCTION_DEFAULT_ORIGIN);
+  }
+  if (uniq.length > 0) {
+    return uniq;
+  }
+  if (process.env.NODE_ENV !== "production") {
+    return [
+      "http://localhost:3000",
+      "http://127.0.0.1:3000",
+      "http://localhost:5173",
+      "http://127.0.0.1:5173",
+    ];
+  }
+  return [PRODUCTION_DEFAULT_ORIGIN];
+}
+
 async function startServer() {
   const host = "0.0.0.0";
   const port = Number(process.env.PORT) || 3000;
@@ -26,6 +66,42 @@ async function startServer() {
   const app = express();
   const server = createServer(app);
   console.log("[startup] Express app init complete");
+
+  const corsOrigins = readCorsAllowedOrigins();
+  console.log(
+    "[startup] CORS final allowed origins (%d): %s",
+    corsOrigins.length,
+    corsOrigins.join(", "),
+  );
+  app.use(
+    cors({
+      origin: (origin, callback) => {
+        if (!origin) {
+          callback(null, true);
+          return;
+        }
+        if (corsOrigins.length === 0) {
+          callback(null, false);
+          return;
+        }
+        if (corsOrigins.includes(origin)) {
+          callback(null, true);
+          return;
+        }
+        callback(null, false);
+      },
+      credentials: true,
+      methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+      allowedHeaders: [
+        "Content-Type",
+        "Authorization",
+        "x-trpc-source",
+        "trpc-accept",
+        "x-requested-with",
+      ],
+    }),
+  );
+  console.log("[startup] CORS middleware applied");
 
   app.get("/health", (_req, res) => {
     res.json({ status: "ok" });

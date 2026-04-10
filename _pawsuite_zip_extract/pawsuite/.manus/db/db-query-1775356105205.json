@@ -1,9 +1,0 @@
-{
-  "query": "CREATE TABLE `rooms` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`kennelId` int NOT NULL,\n\t`name` varchar(100) NOT NULL,\n\t`building` varchar(100),\n\t`sizeType` enum('small','medium','large','mixed','special_care') NOT NULL DEFAULT 'mixed',\n\t`capacity` int NOT NULL DEFAULT 1,\n\t`notes` text,\n\t`isAvailable` boolean NOT NULL DEFAULT true,\n\t`createdAt` timestamp NOT NULL DEFAULT (now()),\n\t`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n\tCONSTRAINT `rooms_id` PRIMARY KEY(`id`)\n);",
-  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2shEjwfUMUphfVj.bbedb1332aa0 --database 55ZLCexs6TL3Efg975FSmD --execute CREATE TABLE `rooms` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`kennelId` int NOT NULL,\n\t`name` varchar(100) NOT NULL,\n\t`building` varchar(100),\n\t`sizeType` enum('small','medium','large','mixed','special_care') NOT NULL DEFAULT 'mixed',\n\t`capacity` int NOT NULL DEFAULT 1,\n\t`notes` text,\n\t`isAvailable` boolean NOT NULL DEFAULT true,\n\t`createdAt` timestamp NOT NULL DEFAULT (now()),\n\t`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n\tCONSTRAINT `rooms_id` PRIMARY KEY(`id`)\n);",
-  "rows": [],
-  "messages": [],
-  "stdout": "",
-  "stderr": "",
-  "execution_time_ms": 444
-}

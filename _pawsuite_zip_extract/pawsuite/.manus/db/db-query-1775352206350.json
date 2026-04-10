@@ -1,9 +1,0 @@
-{
-  "query": "CREATE TABLE `alerts` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`kennelId` int NOT NULL,\n\t`targetUserId` int,\n\t`type` enum('vaccination_expiring','vaccination_expired','booking_conflict','payment_due','check_in_reminder','capacity_warning','general') NOT NULL,\n\t`title` varchar(255) NOT NULL,\n\t`message` text,\n\t`severity` enum('info','warning','critical') NOT NULL DEFAULT 'info',\n\t`isRead` boolean NOT NULL DEFAULT false,\n\t`relatedDogId` int,\n\t`relatedBookingId` int,\n\t`createdAt` timestamp NOT NULL DEFAULT (now()),\n\tCONSTRAINT `alerts_id` PRIMARY KEY(`id`)\n);",
-  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2shEjwfUMUphfVj.bbedb1332aa0 --database 55ZLCexs6TL3Efg975FSmD --execute CREATE TABLE `alerts` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`kennelId` int NOT NULL,\n\t`targetUserId` int,\n\t`type` enum('vaccination_expiring','vaccination_expired','booking_conflict','payment_due','check_in_reminder','capacity_warning','general') NOT NULL,\n\t`title` varchar(255) NOT NULL,\n\t`message` text,\n\t`severity` enum('info','warning','critical') NOT NULL DEFAULT 'info',\n\t`isRead` boolean NOT NULL DEFAULT false,\n\t`relatedDogId` int,\n\t`relatedBookingId` int,\n\t`createdAt` timestamp NOT NULL DEFAULT (now()),\n\tCONSTRAINT `alerts_id` PRIMARY KEY(`id`)\n);",
-  "rows": [],
-  "messages": [],
-  "stdout": "",
-  "stderr": "",
-  "execution_time_ms": 471
-}

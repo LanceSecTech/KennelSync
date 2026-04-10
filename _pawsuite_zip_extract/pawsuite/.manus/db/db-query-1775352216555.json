@@ -1,9 +1,0 @@
-{
-  "query": "CREATE TABLE `dogs` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`ownerId` int NOT NULL,\n\t`name` varchar(100) NOT NULL,\n\t`breed` varchar(100),\n\t`age` int,\n\t`weight` decimal(5,1),\n\t`sex` enum('male','female'),\n\t`isSpayedNeutered` boolean DEFAULT false,\n\t`photoUrl` text,\n\t`feedingInstructions` text,\n\t`medications` text,\n\t`behaviorNotes` text,\n\t`specialNeeds` text,\n\t`vetName` varchar(200),\n\t`vetPhone` varchar(20),\n\t`emergencyContactName` varchar(200),\n\t`emergencyContactPhone` varchar(20),\n\t`isActive` boolean NOT NULL DEFAULT true,\n\t`createdAt` timestamp NOT NULL DEFAULT (now()),\n\t`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n\tCONSTRAINT `dogs_id` PRIMARY KEY(`id`)\n);",
-  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway05.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2shEjwfUMUphfVj.bbedb1332aa0 --database 55ZLCexs6TL3Efg975FSmD --execute CREATE TABLE `dogs` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`ownerId` int NOT NULL,\n\t`name` varchar(100) NOT NULL,\n\t`breed` varchar(100),\n\t`age` int,\n\t`weight` decimal(5,1),\n\t`sex` enum('male','female'),\n\t`isSpayedNeutered` boolean DEFAULT false,\n\t`photoUrl` text,\n\t`feedingInstructions` text,\n\t`medications` text,\n\t`behaviorNotes` text,\n\t`specialNeeds` text,\n\t`vetName` varchar(200),\n\t`vetPhone` varchar(20),\n\t`emergencyContactName` varchar(200),\n\t`emergencyContactPhone` varchar(20),\n\t`isActive` boolean NOT NULL DEFAULT true,\n\t`createdAt` timestamp NOT NULL DEFAULT (now()),\n\t`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n\tCONSTRAINT `dogs_id` PRIMARY KEY(`id`)\n);",
-  "rows": [],
-  "messages": [],
-  "stdout": "",
-  "stderr": "",
-  "execution_time_ms": 426
-}
