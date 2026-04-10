@@ -1,3 +1,4 @@
+import { getTrpcUrl } from "@/lib/apiBase";
 import { trpc } from "@/lib/trpc";
 import { supabase } from "@/lib/supabase";
 import { UNAUTHED_ERR_MSG } from '@shared/const';
@@ -8,6 +9,8 @@ import superjson from "superjson";
 import App from "./App";
 import { getLoginUrl } from "./const";
 import "./index.css";
+
+void getTrpcUrl();
 
 const queryClient = new QueryClient();
 
@@ -41,7 +44,7 @@ queryClient.getMutationCache().subscribe(event => {
 const trpcClient = trpc.createClient({
   links: [
     httpBatchLink({
-      url: "/api/trpc",
+      url: getTrpcUrl(),
       transformer: superjson,
       async fetch(input, init) {
         // Get the current Supabase session and access token
