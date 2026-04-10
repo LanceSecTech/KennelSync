@@ -34,9 +34,24 @@ async function assertOwnerOwnsBookingKennel(user: User, booking: { kennelId: num
   if (user.role !== "owner") {
     throw new TRPCError({ code: "FORBIDDEN", message: "Owner access required" });
   }
-  const kennels = await db.getKennelsByOwnerId(user.id);
-  if (!kennels.some((k: { id: number }) => k.id === booking.kennelId)) {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Not authorized for this booking" });
+  await assertOwnerOwnsKennel(user.id, booking.kennelId);
+}
+
+/** Single-kennel ownership check (authoritative row: kennels.owner_id). Service role bypasses RLS — use on every owner-scoped mutation/query by kennel. */
+async function assertOwnerOwnsKennel(userId: string, kennelId: number): Promise<void> {
+  let row: Record<string, unknown>;
+  try {
+    row = (await db.getKennelById(kennelId)) as Record<string, unknown>;
+  } catch {
+    console.warn(`[auth] assertOwnerOwnsKennel deny userId=${userId} kennelId=${kennelId} result=not_found`);
+    throw new TRPCError({ code: "NOT_FOUND", message: "Kennel not found" });
+  }
+  const ownerId = String(row.owner_id ?? "");
+  if (!ownerId || ownerId !== userId) {
+    console.warn(
+      `[auth] assertOwnerOwnsKennel deny userId=${userId} kennelId=${kennelId} ownerId=${ownerId || "none"} result=forbidden`,
+    );
+    throw new TRPCError({ code: "FORBIDDEN", message: "Not authorized for this kennel" });
   }
 }
 
@@ -44,21 +59,7 @@ async function assertOwnerOwnsKennelId(user: User, kennelId: number) {
   if (user.role !== "owner") {
     throw new TRPCError({ code: "FORBIDDEN", message: "Owner access required" });
   }
-  const kennels = await db.getKennelsByOwnerId(user.id);
-  if (!kennels.some((k: { id: number }) => k.id === kennelId)) {
-    let kennelOwnerId = "not_found";
-    try {
-      const row = await db.getKennelById(kennelId);
-      kennelOwnerId = String((row as { owner_id?: string })?.owner_id ?? "");
-    } catch {
-      kennelOwnerId = "lookup_failed";
-    }
-    const ownedIds = kennels.map((k: { id: number }) => k.id).join(",") || "none";
-    console.warn(
-      `[auth] owner kennel denied userId=${user.id} kennelId=${kennelId} kennelOwnerId=${kennelOwnerId} ownedKennelIds=[${ownedIds}]`,
-    );
-    throw new TRPCError({ code: "FORBIDDEN", message: "Not authorized for this kennel" });
-  }
+  await assertOwnerOwnsKennel(user.id, kennelId);
 }
 
 async function assertStaffMayChangeBookingStatus(user: User, booking: { kennelId: number }) {
@@ -79,10 +80,7 @@ async function assertStaffMayChangeBookingStatus(user: User, booking: { kennelId
 
 async function assertEmployeeOrOwnerKennel(user: User, kennelId: number) {
   if (user.role === "owner") {
-    const kennels = await db.getKennelsByOwnerId(user.id);
-    if (!kennels.some((k: { id: number }) => k.id === kennelId)) {
-      throw new TRPCError({ code: "FORBIDDEN", message: "Not authorized for this kennel" });
-    }
+    await assertOwnerOwnsKennel(user.id, kennelId);
     return;
   }
   if (user.role === "employee") {
@@ -381,7 +379,9 @@ export const appRouter = router({
       email: z.string().optional(),
       policies: z.string().optional(),
       logoUrl: z.string().optional(),
-    })).mutation(async ({ input }) => {
+    })).mutation(async ({ ctx, input }) => {
+      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+      await assertOwnerOwnsKennelId(ctx.user, input.id);
       const { id, logoUrl, name, description, address, city, state, zip, phone, email, policies } = input;
       const updates: Record<string, any> = {};
       if (name !== undefined) updates.name = name;
@@ -447,7 +447,9 @@ export const appRouter = router({
       pricePerUnit: z.union([z.number(), z.string()]).transform((v) => parseFloat(String(v).trim())).refine((n) => Number.isFinite(n), { message: 'Invalid price' }),
       description: z.string().optional(),
       unitType: z.enum(['per_night', 'per_day', 'per_session']).optional(),
-    })).mutation(async ({ input }) => {
+    })).mutation(async ({ ctx, input }) => {
+      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+      await assertOwnerOwnsKennelId(ctx.user, input.kennelId);
       return db.createService(
         input.kennelId,
         input.name,
@@ -469,7 +471,10 @@ export const appRouter = router({
       description: z.string().nullable().optional(),
       unitType: z.enum(['per_night', 'per_day', 'per_session']).nullable().optional(),
       isActive: z.boolean().optional(),
-    })).mutation(async ({ input }) => {
+    })).mutation(async ({ ctx, input }) => {
+      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+      const svc = await db.getServiceById(input.id);
+      await assertOwnerOwnsKennelId(ctx.user, svc.kennelId);
       const { id, pricePerUnit, description, unitType, ...rest } = input;
       const updates: Record<string, any> = {};
       if (rest.name !== undefined) updates.name = rest.name;
@@ -480,7 +485,10 @@ export const appRouter = router({
       if (unitType !== undefined) updates.unit_type = unitType;
       return db.updateService(id, updates);
     }),
-    delete: ownerProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => {
+    delete: ownerProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
+      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+      const svc = await db.getServiceById(input.id);
+      await assertOwnerOwnsKennelId(ctx.user, svc.kennelId);
       await db.deleteService(input.id);
       return { success: true };
     }),
@@ -540,7 +548,16 @@ export const appRouter = router({
       emergencyContactName: z.string().optional(),
       emergencyContactPhone: z.string().optional(),
       specialNeeds: z.string().nullable().optional(),
-    })).mutation(async ({ input }) => {
+    })).mutation(async ({ ctx, input }) => {
+      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+      const dog = await db.getDogById(input.id);
+      if (dog.ownerId !== ctx.user.id) {
+        console.warn(
+          `[auth] dog.update deny userId=${ctx.user.id} dogId=${input.id} ownerId=${dog.ownerId} result=forbidden`,
+        );
+        throw new TRPCError({ code: "FORBIDDEN", message: "Not authorized to update this dog" });
+      }
+      console.log(`[auth] dog.update ok userId=${ctx.user.id} dogId=${input.id}`);
       const {
         id,
         name,
@@ -1272,7 +1289,9 @@ export const appRouter = router({
       if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
       return db.getPaymentsByCustomerId(ctx.user.id);
     }),
-    byKennel: ownerProcedure.input(z.object({ kennelId: z.number() })).query(async ({ input }) => {
+    byKennel: ownerProcedure.input(z.object({ kennelId: z.number() })).query(async ({ ctx, input }) => {
+      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+      await assertOwnerOwnsKennelId(ctx.user, input.kennelId);
       const { data, error } = await supabase
         .from('payments')
         .select('*')
@@ -1377,6 +1396,17 @@ export const appRouter = router({
       stripePaymentId: z.string(),
     })).mutation(async ({ ctx, input }) => {
       if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
+      const booking = await loadBookingForAccess(input.bookingId);
+      if (booking.customerId !== ctx.user.id) {
+        console.warn(
+          `[auth] payment.create deny userId=${ctx.user.id} bookingId=${input.bookingId} customerId=${booking.customerId}`,
+        );
+        throw new TRPCError({ code: "FORBIDDEN", message: "Not authorized for this booking" });
+      }
+      if (booking.kennelId !== input.kennelId) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Kennel does not match booking" });
+      }
+      console.log(`[auth] payment.create ok userId=${ctx.user.id} bookingId=${input.bookingId} kennelId=${input.kennelId}`);
       return db.createPayment(input.bookingId, ctx.user.id, input.kennelId, input.amount, input.stripePaymentId);
     }),
   }),
@@ -1801,7 +1831,9 @@ export const appRouter = router({
       kennelId: z.number(),
       name: z.string(),
       price: z.number(),
-    })).mutation(async ({ input }) => {
+    })).mutation(async ({ ctx, input }) => {
+      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+      await assertOwnerOwnsKennelId(ctx.user, input.kennelId);
       return db.createCheckoutAddOn(input.kennelId, input.name, input.price);
     }),
     update: ownerProcedure.input(z.object({
@@ -1809,11 +1841,29 @@ export const appRouter = router({
       name: z.string().optional(),
       price: z.number().optional(),
       isActive: z.boolean().optional(),
-    })).mutation(async ({ input }) => {
+    })).mutation(async ({ ctx, input }) => {
+      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+      const { data: row, error } = await supabase
+        .from("checkout_add_ons")
+        .select("kennel_id")
+        .eq("id", input.id)
+        .maybeSingle();
+      if (error) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error.message });
+      if (!row) throw new TRPCError({ code: "NOT_FOUND", message: "Add-on not found" });
+      await assertOwnerOwnsKennelId(ctx.user, Number(row.kennel_id));
       const { id, ...data } = input;
       return db.updateCheckoutAddOn(id, data);
     }),
-    delete: ownerProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => {
+    delete: ownerProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
+      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+      const { data: row, error } = await supabase
+        .from("checkout_add_ons")
+        .select("kennel_id")
+        .eq("id", input.id)
+        .maybeSingle();
+      if (error) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error.message });
+      if (!row) throw new TRPCError({ code: "NOT_FOUND", message: "Add-on not found" });
+      await assertOwnerOwnsKennelId(ctx.user, Number(row.kennel_id));
       await db.deleteCheckoutAddOn(input.id);
       return { success: true };
     }),
@@ -1885,7 +1935,16 @@ export const appRouter = router({
           isActive: z.boolean().optional(),
         }),
       )
-      .mutation(async ({ input }) => {
+      .mutation(async ({ ctx, input }) => {
+        if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+        const { data: dRow, error: fetchErr } = await supabase
+          .from("checkout_discounts")
+          .select("kennel_id")
+          .eq("id", input.id)
+          .maybeSingle();
+        if (fetchErr) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: fetchErr.message });
+        if (!dRow) throw new TRPCError({ code: "NOT_FOUND", message: "Discount not found" });
+        await assertOwnerOwnsKennelId(ctx.user, Number(dRow.kennel_id));
         const updates: Record<string, any> = {};
         if (input.name !== undefined) updates.name = input.name.trim();
         if (input.discountType !== undefined) updates.discount_type = input.discountType;
@@ -1920,7 +1979,9 @@ export const appRouter = router({
         closeTime: z.string().nullable(),
         isClosed: z.boolean(),
       })),
-    })).mutation(async ({ input }) => {
+    })).mutation(async ({ ctx, input }) => {
+      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+      await assertOwnerOwnsKennelId(ctx.user, input.kennelId);
       for (const h of input.hours) {
         await db.updateBusinessHours(
           input.kennelId,
@@ -1939,7 +2000,9 @@ export const appRouter = router({
       openTime: z.string(),
       closeTime: z.string(),
       isClosed: z.boolean(),
-    })).mutation(async ({ input }) => {
+    })).mutation(async ({ ctx, input }) => {
+      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+      await assertOwnerOwnsKennelId(ctx.user, input.kennelId);
       return db.updateBusinessHours(input.kennelId, input.dayOfWeek, input.openTime, input.closeTime, input.isClosed);
     }),
   }),
@@ -2042,7 +2105,9 @@ export const appRouter = router({
 
       return { dogsCount: dogs.length, dogStatuses, upcomingStays, activeStays, actionItems };
     }),
-    ownerDashboard: ownerProcedure.input(z.object({ kennelId: z.number() })).query(async ({ input }) => {
+    ownerDashboard: ownerProcedure.input(z.object({ kennelId: z.number() })).query(async ({ ctx, input }) => {
+      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+      await assertOwnerOwnsKennelId(ctx.user, input.kennelId);
       const today = new Date().toISOString().split('T')[0];
       const startOfMonth = new Date();
       startOfMonth.setDate(1);
@@ -2618,10 +2683,14 @@ export const appRouter = router({
 
   // ===== ALERTS ROUTES =====
   alert: router({
-    list: employeeProcedure.input(z.object({ kennelId: z.number() })).query(async ({ input }) => {
+    list: employeeProcedure.input(z.object({ kennelId: z.number() })).query(async ({ ctx, input }) => {
+      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+      await assertEmployeeOrOwnerKennel(ctx.user, input.kennelId);
       return db.getAlertsByKennelId(input.kennelId);
     }),
-    byKennel: protectedProcedure.input(z.object({ kennelId: z.number() })).query(async ({ input }) => {
+    byKennel: protectedProcedure.input(z.object({ kennelId: z.number() })).query(async ({ ctx, input }) => {
+      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+      await assertEmployeeOrOwnerKennel(ctx.user, input.kennelId);
       return db.getAlertsByKennelId(input.kennelId);
     }),
     myAlerts: protectedProcedure.query(async ({ ctx }) => {
@@ -2648,7 +2717,30 @@ export const appRouter = router({
         createdAt: a.created_at,
       }));
     }),
-    markRead: protectedProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => {
+    markRead: protectedProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
+      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+      const { data: row, error: fetchErr } = await supabase.from("alerts").select("*").eq("id", input.id).maybeSingle();
+      if (fetchErr) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: fetchErr.message });
+      if (!row) throw new TRPCError({ code: "NOT_FOUND", message: "Alert not found" });
+      const r = row as Record<string, unknown>;
+      const rowUserId = r.user_id != null && r.user_id !== "" ? String(r.user_id) : null;
+      if (rowUserId && rowUserId === ctx.user.id) {
+        console.log(`[auth] alert.markRead ok userId=${ctx.user.id} alertId=${input.id} via=user_id`);
+      } else if (r.booking_id != null) {
+        const booking = await loadBookingForAccess(Number(r.booking_id));
+        if (booking.customerId !== ctx.user.id) {
+          await assertEmployeeOrOwnerKennel(ctx.user, booking.kennelId);
+          console.log(
+            `[auth] alert.markRead ok userId=${ctx.user.id} alertId=${input.id} kennelId=${booking.kennelId} via=staff`,
+          );
+        } else {
+          console.log(`[auth] alert.markRead ok userId=${ctx.user.id} alertId=${input.id} via=bookingCustomer`);
+        }
+      } else {
+        const kid = Number(r.kennel_id);
+        await assertEmployeeOrOwnerKennel(ctx.user, kid);
+        console.log(`[auth] alert.markRead ok userId=${ctx.user.id} alertId=${input.id} kennelId=${kid} via=kennelStaff`);
+      }
       let { error } = await supabase
         .from('alerts')
         .update({ is_resolved: true })
@@ -3001,7 +3093,9 @@ export const appRouter = router({
       }
       return (data || []).map((r: any) => ({ id: r.id, kennelId: r.kennel_id, vaccineName: r.vaccine_name }));
     }),
-    add: ownerProcedure.input(z.object({ kennelId: z.number(), vaccineName: z.string() })).mutation(async ({ input }) => {
+    add: ownerProcedure.input(z.object({ kennelId: z.number(), vaccineName: z.string() })).mutation(async ({ ctx, input }) => {
+      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+      await assertOwnerOwnsKennelId(ctx.user, input.kennelId);
       const { data, error } = await supabase
         .from('kennel_required_vaccines')
         .insert([{ kennel_id: input.kennelId, vaccine_name: input.vaccineName }])
@@ -3015,7 +3109,16 @@ export const appRouter = router({
       }
       return { id: data.id, kennelId: data.kennel_id, vaccineName: data.vaccine_name };
     }),
-    remove: ownerProcedure.input(z.object({ id: z.number() })).mutation(async ({ input }) => {
+    remove: ownerProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
+      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+      const { data: row, error: fetchErr } = await supabase
+        .from("kennel_required_vaccines")
+        .select("kennel_id")
+        .eq("id", input.id)
+        .maybeSingle();
+      if (fetchErr) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: fetchErr.message });
+      if (!row) throw new TRPCError({ code: "NOT_FOUND", message: "Required vaccine row not found" });
+      await assertOwnerOwnsKennelId(ctx.user, Number(row.kennel_id));
       const { error } = await supabase
         .from('kennel_required_vaccines')
         .delete()
@@ -3032,7 +3135,12 @@ export const appRouter = router({
 
   // ===== BOOKING ADD-ONS ROUTES =====
   bookingAddOn: router({
-    list: protectedProcedure.input(z.object({ bookingId: z.number() })).query(async ({ input }) => {
+    list: protectedProcedure.input(z.object({ bookingId: z.number() })).query(async ({ ctx, input }) => {
+      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+      const booking = await loadBookingForAccess(input.bookingId);
+      if (booking.customerId !== ctx.user.id) {
+        await assertEmployeeOrOwnerKennel(ctx.user, booking.kennelId);
+      }
       return db.getBookingAddOns(input.bookingId);
     }),
     addToBooking: employeeProcedure.input(z.object({
@@ -3040,13 +3148,21 @@ export const appRouter = router({
       addOnId: z.number(),
       dogId: z.number(),
       price: z.number(),
-    })).mutation(async ({ input }) => {
+    })).mutation(async ({ ctx, input }) => {
+      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+      const booking = await loadBookingForAccess(input.bookingId);
+      await assertEmployeeOrOwnerKennel(ctx.user, booking.kennelId);
+      console.log(`[auth] bookingAddOn.addToBooking ok userId=${ctx.user.id} bookingId=${input.bookingId} kennelId=${booking.kennelId}`);
       return db.addBookingAddOn(input.bookingId, input.addOnId, input.dogId, input.price);
     }),
     markComplete: employeeProcedure.input(z.object({
       bookingId: z.number(),
       addOnId: z.number(),
-    })).mutation(async ({ input }) => {
+    })).mutation(async ({ ctx, input }) => {
+      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+      const booking = await loadBookingForAccess(input.bookingId);
+      await assertEmployeeOrOwnerKennel(ctx.user, booking.kennelId);
+      console.log(`[auth] bookingAddOn.markComplete ok userId=${ctx.user.id} bookingId=${input.bookingId} kennelId=${booking.kennelId}`);
       const patch = { completed: true, task_status: 'completed' as const };
       let { error } = await supabase
         .from('booking_add_ons')
@@ -3067,7 +3183,18 @@ export const appRouter = router({
     setTaskStatus: employeeProcedure.input(z.object({
       id: z.number(),
       status: z.enum(['pending', 'in_progress', 'completed']),
-    })).mutation(async ({ input }) => {
+    })).mutation(async ({ ctx, input }) => {
+      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+      const { data: baRow, error: baErr } = await supabase
+        .from("booking_add_ons")
+        .select("booking_id")
+        .eq("id", input.id)
+        .maybeSingle();
+      if (baErr) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: baErr.message });
+      if (!baRow) throw new TRPCError({ code: "NOT_FOUND", message: "Booking add-on not found" });
+      const booking = await loadBookingForAccess(Number(baRow.booking_id));
+      await assertEmployeeOrOwnerKennel(ctx.user, booking.kennelId);
+      console.log(`[auth] bookingAddOn.setTaskStatus ok userId=${ctx.user.id} rowId=${input.id} kennelId=${booking.kennelId}`);
       const completed = input.status === 'completed';
       const withStatus = { completed, task_status: input.status };
       let { error } = await supabase.from('booking_add_ons').update(withStatus).eq('id', input.id);
