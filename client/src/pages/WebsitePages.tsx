@@ -17,70 +17,174 @@ function getAuthModeFromUrl(): "login" | "signup" {
 export function WebsiteHome() {
   return (
     <div className="relative">
-      <section className="relative min-h-[78vh] overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_20%,rgba(34,197,94,0.14),transparent_35%),radial-gradient(circle_at_85%_30%,rgba(74,222,128,0.2),transparent_38%),linear-gradient(180deg,#f0fdf4_0%,#ffffff_55%,#f8fafc_100%)]" />
-
-        <div className="relative mx-auto flex min-h-[78vh] max-w-7xl flex-col items-center justify-center px-4 pb-20 pt-12 text-center sm:px-6 lg:px-8">
-          <div className="mb-6 inline-flex items-center rounded-full border border-emerald-200 bg-white/85 px-4 py-1.5 text-xs font-medium tracking-wide text-emerald-700 backdrop-blur">
-            Premium operations platform for modern kennels
+      <section className="relative overflow-hidden border-b border-emerald-100/70">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_8%_20%,rgba(16,185,129,0.12),transparent_35%),radial-gradient(circle_at_90%_20%,rgba(16,185,129,0.1),transparent_40%),linear-gradient(180deg,#f8fffb_0%,#ffffff_55%,#f8fafc_100%)]" />
+        <div className="relative mx-auto grid max-w-7xl gap-12 px-4 pb-24 pt-16 sm:px-6 lg:grid-cols-2 lg:items-center lg:gap-14 lg:px-8 lg:pt-20">
+          <div>
+            <div className="inline-flex items-center rounded-full border border-emerald-200 bg-white/90 px-3 py-1 text-xs font-medium text-emerald-700">
+              Built for professional kennel operations
+            </div>
+            <h1 className="mt-5 text-balance text-4xl font-semibold leading-tight text-slate-900 sm:text-5xl lg:text-6xl">
+              KennelSync is the operating system for modern kennel teams.
+            </h1>
+            <p className="mt-5 max-w-xl text-base leading-relaxed text-slate-600 sm:text-lg">
+              Manage bookings, dog profiles, room assignments, and staff workflows in one clean platform designed for real
+              pet care businesses.
+            </p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link href="/login?mode=signup">
+                <Button className="h-11 rounded-full bg-emerald-600 px-7 text-sm font-semibold text-white hover:bg-emerald-700">
+                  Start Free
+                </Button>
+              </Link>
+              <a href="#contact-professional">
+                <Button variant="outline" className="h-11 rounded-full border-slate-300 px-7 text-sm font-semibold">
+                  Book a Demo
+                </Button>
+              </a>
+            </div>
           </div>
-
-          <h1 className="max-w-5xl text-balance text-4xl font-semibold leading-tight text-slate-900 sm:text-5xl lg:text-7xl">
-            Run every stay with precision.
-            <span className="block text-emerald-600">
-              Deliver an experience owners remember.
-            </span>
-          </h1>
-
-          <p className="mt-6 max-w-3xl text-base text-slate-600 sm:text-lg lg:text-xl">
-            KennelSync unifies bookings, rooms, check-in flows, staff operations, and customer visibility
-            into one elegant system built for high-performing pet care teams.
-          </p>
-
-          <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
-            <Link href="/login">
-              <Button className="h-11 rounded-full bg-emerald-500 px-7 text-sm font-semibold text-white hover:bg-emerald-600">
-                Start Free
-              </Button>
-            </Link>
-            <Link href="/kennels">
-              <Button
-                variant="outline"
-                className="h-11 rounded-full border-emerald-300 bg-white px-7 text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
-              >
-                Explore Kennels
-              </Button>
-            </Link>
-          </div>
-
-          <div className="mt-12 grid w-full max-w-4xl gap-3 text-left sm:grid-cols-3">
-            {[
-              { k: "Bookings + Scheduling", v: "Faster front-desk flow with fewer mistakes" },
-              { k: "Rooms + Occupancy", v: "Live visibility across buildings and capacity" },
-              { k: "Reports + Financials", v: "Operational and revenue insights in one place" },
-            ].map((item) => (
-              <div key={item.k} className="rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm">
-                <p className="text-sm font-medium text-slate-900">{item.k}</p>
-                <p className="mt-1 text-xs text-slate-600">{item.v}</p>
+          <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-xl shadow-emerald-100/40 sm:p-5">
+            <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-5">
+              <div className="mb-4 flex items-center justify-between">
+                <p className="text-sm font-semibold text-slate-900">App Preview</p>
+                <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
+                  Owner Dashboard
+                </span>
               </div>
-            ))}
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl border border-slate-200 bg-white p-3">
+                  <p className="text-xs text-slate-500">Today&apos;s Occupancy</p>
+                  <p className="mt-2 text-2xl font-semibold text-slate-900">78%</p>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white p-3">
+                  <p className="text-xs text-slate-500">Active Bookings</p>
+                  <p className="mt-2 text-2xl font-semibold text-slate-900">46</p>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white p-3">
+                  <p className="text-xs text-slate-500">Check-ins Today</p>
+                  <p className="mt-2 text-2xl font-semibold text-slate-900">12</p>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white p-3">
+                  <p className="text-xs text-slate-500">Pending Tasks</p>
+                  <p className="mt-2 text-2xl font-semibold text-slate-900">7</p>
+                </div>
+              </div>
+              <p className="mt-4 text-xs text-slate-500">
+                Replace this preview with a real product screenshot later in `WebsiteHome`.
+              </p>
+            </div>
           </div>
         </div>
       </section>
 
-      <section className="mx-auto grid max-w-7xl gap-4 px-4 pb-24 pt-8 sm:px-6 lg:grid-cols-3 lg:px-8">
-        <Card className="border-emerald-100 bg-white text-slate-900 shadow-sm">
-          <CardHeader><CardTitle>For Owners</CardTitle></CardHeader>
-          <CardContent className="text-slate-600">Shape services, pricing, rooms, and reports from one control center.</CardContent>
-        </Card>
-        <Card className="border-emerald-100 bg-white text-slate-900 shadow-sm">
-          <CardHeader><CardTitle>For Employees</CardTitle></CardHeader>
-          <CardContent className="text-slate-600">Operate check-in/out, room moves, and daily care with confidence.</CardContent>
-        </Card>
-        <Card className="border-emerald-100 bg-white text-slate-900 shadow-sm">
-          <CardHeader><CardTitle>For Customers</CardTitle></CardHeader>
-          <CardContent className="text-slate-600">Book quickly, manage dog profiles, and stay informed end-to-end.</CardContent>
-        </Card>
+      <section id="features" className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
+        <div className="max-w-2xl">
+          <p className="text-sm font-semibold uppercase tracking-[0.12em] text-emerald-700">See KennelSync in Action</p>
+          <h2 className="mt-3 text-3xl font-semibold text-slate-900 sm:text-4xl">Visual walkthrough of key workflows</h2>
+          <p className="mt-3 text-slate-600">
+            Drop in your product screenshots here to show exactly how teams use KennelSync day to day.
+          </p>
+        </div>
+        <div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {[
+            "Owner Dashboard",
+            "Booking Management",
+            "Dog Profiles",
+            "Employee Workflow",
+            "Customer Booking Experience",
+          ].map((label) => (
+            <div
+              key={label}
+              className="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+            >
+              <div className="flex aspect-[16/10] items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50">
+                <span className="text-sm font-medium text-slate-500">{label} Screenshot</span>
+              </div>
+              <p className="mt-3 text-sm font-semibold text-slate-900">{label}</p>
+              <p className="text-xs text-slate-500">Replace this placeholder with a real image asset.</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section id="for-owners" className="border-y border-slate-200 bg-slate-50/60">
+        <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
+          <div className="max-w-2xl">
+            <p className="text-sm font-semibold uppercase tracking-[0.12em] text-emerald-700">Built for every role</p>
+            <h2 className="mt-3 text-3xl font-semibold text-slate-900 sm:text-4xl">Clarity for owners, employees, and customers</h2>
+          </div>
+          <div className="mt-10 grid gap-5 lg:grid-cols-3">
+            <Card className="rounded-2xl border-slate-200 bg-white shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-xl">For Owners</CardTitle>
+              </CardHeader>
+              <CardContent className="text-slate-600">
+                Manage pricing, occupancy, staffing visibility, and performance in a single operating view.
+              </CardContent>
+            </Card>
+            <Card id="for-employees" className="rounded-2xl border-slate-200 bg-white shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-xl">For Employees</CardTitle>
+              </CardHeader>
+              <CardContent className="text-slate-600">
+                Run faster check-ins, room moves, and care tasks with fewer errors and cleaner handoffs.
+              </CardContent>
+            </Card>
+            <Card id="for-customers" className="rounded-2xl border-slate-200 bg-white shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-xl">For Customers</CardTitle>
+              </CardHeader>
+              <CardContent className="text-slate-600">
+                Book with confidence, keep dog profiles current, and see clear status throughout the stay lifecycle.
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      <section id="contact-professional" className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
+        <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm sm:p-10">
+          <p className="text-sm font-semibold uppercase tracking-[0.12em] text-emerald-700">Talk to a Specialist</p>
+          <h2 className="mt-3 text-3xl font-semibold text-slate-900 sm:text-4xl">Contact a Professional</h2>
+          <p className="mt-4 max-w-2xl text-slate-600">
+            Need help planning rollout, migrating data, or training your staff? Our team can walk you through the best
+            setup for your kennel.
+          </p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <a href="mailto:support@kennelsync.com?subject=KennelSync%20Demo%20Request">
+              <Button className="h-11 rounded-full bg-emerald-600 px-7 text-sm font-semibold text-white hover:bg-emerald-700">
+                Book a Demo
+              </Button>
+            </a>
+            <Link href="/help">
+              <Button variant="outline" className="h-11 rounded-full border-slate-300 px-7 text-sm font-semibold">
+                Contact Support
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      <section className="border-t border-slate-200 bg-white">
+        <div className="mx-auto max-w-7xl px-4 py-20 text-center sm:px-6 lg:px-8">
+          <h2 className="text-3xl font-semibold text-slate-900 sm:text-4xl">Ready to modernize your kennel operations?</h2>
+          <p className="mx-auto mt-4 max-w-2xl text-slate-600">
+            Start with a clean, professional system your team can trust and your customers can understand.
+          </p>
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+            <Link href="/login?mode=signup">
+              <Button className="h-11 rounded-full bg-emerald-600 px-7 text-sm font-semibold text-white hover:bg-emerald-700">
+                Sign Up
+              </Button>
+            </Link>
+            <a href="#contact-professional">
+              <Button variant="outline" className="h-11 rounded-full border-slate-300 px-7 text-sm font-semibold">
+                Talk to a Specialist
+              </Button>
+            </a>
+          </div>
+        </div>
       </section>
     </div>
   );
