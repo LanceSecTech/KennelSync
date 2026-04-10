@@ -15,11 +15,35 @@ function getAuthModeFromUrl(): "login" | "signup" {
 }
 
 export function WebsiteHome() {
+  const previews = [
+    { label: "Owner overview", hint: "Dashboard metrics and occupancy at a glance." },
+    { label: "Bookings", hint: "Pipeline and stay management." },
+    { label: "Dog profiles", hint: "Care notes and vaccine context in one place." },
+  ];
+
+  const roles = [
+    {
+      title: "Owners",
+      body: "Run services, rooms, bookings, and visibility from one control center.",
+      href: "/owners",
+    },
+    {
+      title: "Employees",
+      body: "Check-ins, room moves, and daily tasks without hunting for details.",
+      href: "/employees",
+    },
+    {
+      title: "Customers",
+      body: "Book stays, keep profiles current, and see clear status.",
+      href: "/customers",
+    },
+  ];
+
   return (
     <div className="relative">
       <section className="relative overflow-hidden border-b border-emerald-100/70">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_8%_20%,rgba(16,185,129,0.12),transparent_35%),radial-gradient(circle_at_90%_20%,rgba(16,185,129,0.1),transparent_40%),linear-gradient(180deg,#f8fffb_0%,#ffffff_55%,#f8fafc_100%)]" />
-        <div className="relative mx-auto grid max-w-7xl gap-12 px-4 pb-24 pt-16 sm:px-6 lg:grid-cols-2 lg:items-center lg:gap-14 lg:px-8 lg:pt-20">
+        <div className="relative mx-auto grid max-w-7xl gap-12 px-4 pb-20 pt-16 sm:px-6 lg:grid-cols-2 lg:items-center lg:gap-14 lg:px-8 lg:pt-20">
           <div>
             <div className="inline-flex items-center rounded-full border border-emerald-200 bg-white/90 px-3 py-1 text-xs font-medium text-emerald-700">
               Built for professional kennel operations
@@ -28,7 +52,7 @@ export function WebsiteHome() {
               KennelSync is the operating system for modern kennel teams.
             </h1>
             <p className="mt-5 max-w-xl text-base leading-relaxed text-slate-600 sm:text-lg">
-              Manage bookings, dog profiles, room assignments, and staff workflows in one clean platform designed for real
+              One platform for bookings, dog profiles, rooms, staff workflows, and customer touchpoints—designed for real
               pet care businesses.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
@@ -37,153 +61,112 @@ export function WebsiteHome() {
                   Start Free
                 </Button>
               </Link>
-              <a href="#contact-professional">
+              <Link href="/contact">
                 <Button variant="outline" className="h-11 rounded-full border-slate-300 px-7 text-sm font-semibold">
                   Book a Demo
                 </Button>
-              </a>
+              </Link>
             </div>
           </div>
           <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-xl shadow-emerald-100/40 sm:p-5">
             <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-5">
               <div className="mb-4 flex items-center justify-between">
-                <p className="text-sm font-semibold text-slate-900">App Preview</p>
+                <p className="text-sm font-semibold text-slate-900">App preview</p>
                 <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
                   Owner Dashboard
                 </span>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="rounded-xl border border-slate-200 bg-white p-3">
-                  <p className="text-xs text-slate-500">Today&apos;s Occupancy</p>
+                  <p className="text-xs text-slate-500">Today&apos;s occupancy</p>
                   <p className="mt-2 text-2xl font-semibold text-slate-900">78%</p>
                 </div>
                 <div className="rounded-xl border border-slate-200 bg-white p-3">
-                  <p className="text-xs text-slate-500">Active Bookings</p>
+                  <p className="text-xs text-slate-500">Active bookings</p>
                   <p className="mt-2 text-2xl font-semibold text-slate-900">46</p>
                 </div>
                 <div className="rounded-xl border border-slate-200 bg-white p-3">
-                  <p className="text-xs text-slate-500">Check-ins Today</p>
+                  <p className="text-xs text-slate-500">Check-ins today</p>
                   <p className="mt-2 text-2xl font-semibold text-slate-900">12</p>
                 </div>
                 <div className="rounded-xl border border-slate-200 bg-white p-3">
-                  <p className="text-xs text-slate-500">Pending Tasks</p>
+                  <p className="text-xs text-slate-500">Pending tasks</p>
                   <p className="mt-2 text-2xl font-semibold text-slate-900">7</p>
                 </div>
               </div>
-              <p className="mt-4 text-xs text-slate-500">
-                Replace this preview with a real product screenshot later in `WebsiteHome`.
-              </p>
             </div>
           </div>
         </div>
       </section>
 
-      <section id="features" className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
-        <div className="max-w-2xl">
-          <p className="text-sm font-semibold uppercase tracking-[0.12em] text-emerald-700">See KennelSync in Action</p>
-          <h2 className="mt-3 text-3xl font-semibold text-slate-900 sm:text-4xl">Visual walkthrough of key workflows</h2>
-          <p className="mt-3 text-slate-600">
-            Drop in your product screenshots here to show exactly how teams use KennelSync day to day.
-          </p>
+      <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.12em] text-emerald-700">At a glance</p>
+            <h2 className="mt-2 text-2xl font-semibold text-slate-900 sm:text-3xl">A quick look at the product</h2>
+            <p className="mt-2 max-w-xl text-slate-600">
+              Full detail lives on dedicated pages—start here, then dive deeper where you need it.
+            </p>
+          </div>
+          <Link href="/features">
+            <Button variant="outline" className="h-10 rounded-full border-slate-300 px-5 text-sm font-semibold">
+              View all features
+            </Button>
+          </Link>
         </div>
-        <div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {[
-            "Owner Dashboard",
-            "Booking Management",
-            "Dog Profiles",
-            "Employee Workflow",
-            "Customer Booking Experience",
-          ].map((label) => (
-            <div
-              key={label}
-              className="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-            >
+        <div className="mt-10 grid gap-4 md:grid-cols-3">
+          {previews.map((p) => (
+            <div key={p.label} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
               <div className="flex aspect-[16/10] items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50">
-                <span className="text-sm font-medium text-slate-500">{label} Screenshot</span>
+                <span className="px-3 text-center text-sm font-medium text-slate-500">{p.label}</span>
               </div>
-              <p className="mt-3 text-sm font-semibold text-slate-900">{label}</p>
-              <p className="text-xs text-slate-500">Replace this placeholder with a real image asset.</p>
+              <p className="mt-3 text-sm font-semibold text-slate-900">{p.label}</p>
+              <p className="text-xs text-slate-500">{p.hint}</p>
             </div>
           ))}
         </div>
       </section>
 
-      <section id="for-owners" className="border-y border-slate-200 bg-slate-50/60">
-        <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
-          <div className="max-w-2xl">
-            <p className="text-sm font-semibold uppercase tracking-[0.12em] text-emerald-700">Built for every role</p>
-            <h2 className="mt-3 text-3xl font-semibold text-slate-900 sm:text-4xl">Clarity for owners, employees, and customers</h2>
-          </div>
+      <section className="border-y border-slate-200 bg-slate-50/60">
+        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+          <p className="text-sm font-semibold uppercase tracking-[0.12em] text-emerald-700">Who it&apos;s for</p>
+          <h2 className="mt-2 text-2xl font-semibold text-slate-900 sm:text-3xl">Built for every role</h2>
           <div className="mt-10 grid gap-5 lg:grid-cols-3">
-            <Card className="rounded-2xl border-slate-200 bg-white shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-xl">For Owners</CardTitle>
-              </CardHeader>
-              <CardContent className="text-slate-600">
-                Manage pricing, occupancy, staffing visibility, and performance in a single operating view.
-              </CardContent>
-            </Card>
-            <Card id="for-employees" className="rounded-2xl border-slate-200 bg-white shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-xl">For Employees</CardTitle>
-              </CardHeader>
-              <CardContent className="text-slate-600">
-                Run faster check-ins, room moves, and care tasks with fewer errors and cleaner handoffs.
-              </CardContent>
-            </Card>
-            <Card id="for-customers" className="rounded-2xl border-slate-200 bg-white shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-xl">For Customers</CardTitle>
-              </CardHeader>
-              <CardContent className="text-slate-600">
-                Book with confidence, keep dog profiles current, and see clear status throughout the stay lifecycle.
-              </CardContent>
-            </Card>
+            {roles.map((r) => (
+              <Card key={r.title} className="rounded-2xl border-slate-200 bg-white shadow-sm">
+                <CardHeader>
+                  <CardTitle className="text-xl">For {r.title}</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4 text-slate-600">
+                  <p>{r.body}</p>
+                  <Link href={r.href}>
+                    <Button variant="link" className="h-auto p-0 text-emerald-700">
+                      Learn more →
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </div>
       </section>
 
-      <section id="contact-professional" className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
-        <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm sm:p-10">
-          <p className="text-sm font-semibold uppercase tracking-[0.12em] text-emerald-700">Talk to a Specialist</p>
-          <h2 className="mt-3 text-3xl font-semibold text-slate-900 sm:text-4xl">Contact a Professional</h2>
-          <p className="mt-4 max-w-2xl text-slate-600">
-            Need help planning rollout, migrating data, or training your staff? Our team can walk you through the best
-            setup for your kennel.
-          </p>
-          <div className="mt-8 flex flex-wrap gap-3">
-            <a href="mailto:support@kennelsync.com?subject=KennelSync%20Demo%20Request">
-              <Button className="h-11 rounded-full bg-emerald-600 px-7 text-sm font-semibold text-white hover:bg-emerald-700">
-                Book a Demo
-              </Button>
-            </a>
-            <Link href="/help">
-              <Button variant="outline" className="h-11 rounded-full border-slate-300 px-7 text-sm font-semibold">
-                Contact Support
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      <section className="border-t border-slate-200 bg-white">
-        <div className="mx-auto max-w-7xl px-4 py-20 text-center sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-semibold text-slate-900 sm:text-4xl">Ready to modernize your kennel operations?</h2>
-          <p className="mx-auto mt-4 max-w-2xl text-slate-600">
-            Start with a clean, professional system your team can trust and your customers can understand.
-          </p>
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-            <Link href="/login?mode=signup">
-              <Button className="h-11 rounded-full bg-emerald-600 px-7 text-sm font-semibold text-white hover:bg-emerald-700">
-                Sign Up
-              </Button>
-            </Link>
-            <a href="#contact-professional">
-              <Button variant="outline" className="h-11 rounded-full border-slate-300 px-7 text-sm font-semibold">
-                Talk to a Specialist
-              </Button>
-            </a>
-          </div>
+      <section className="mx-auto max-w-7xl px-4 py-16 text-center sm:px-6 sm:py-20 lg:px-8">
+        <h2 className="text-2xl font-semibold text-slate-900 sm:text-3xl">Ready to go deeper?</h2>
+        <p className="mx-auto mt-3 max-w-xl text-slate-600">
+          Explore features by role, or talk to us about rollout and training.
+        </p>
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+          <Link href="/login?mode=signup">
+            <Button className="h-11 rounded-full bg-emerald-600 px-7 text-sm font-semibold text-white hover:bg-emerald-700">
+              Sign Up
+            </Button>
+          </Link>
+          <Link href="/contact">
+            <Button variant="outline" className="h-11 rounded-full border-slate-300 px-7 text-sm font-semibold">
+              Contact a Professional
+            </Button>
+          </Link>
         </div>
       </section>
     </div>

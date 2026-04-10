@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
@@ -5,13 +6,14 @@ import { useLocation } from "wouter";
 const footerLinks = [
   { href: "/about", label: "About" },
   { href: "/kennels", label: "Find Kennels" },
-  { href: "/help", label: "Contact a Professional" },
+  { href: "/contact", label: "Book a Demo" },
+  { href: "/help", label: "Help" },
   { href: "/privacy", label: "Privacy" },
   { href: "/terms", label: "Terms" },
   { href: "/guidelines", label: "Guidelines" },
 ];
 
-export default function WebsiteLayout({ children }: { children: React.ReactNode }) {
+export default function WebsiteLayout({ children }: { children: ReactNode }) {
   const [location] = useLocation();
 
   return (
@@ -19,18 +21,45 @@ export default function WebsiteLayout({ children }: { children: React.ReactNode 
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_18%,rgba(34,197,94,0.16),transparent_34%),radial-gradient(circle_at_85%_20%,rgba(134,239,172,0.22),transparent_40%),linear-gradient(180deg,#f0fdf4_0%,#ffffff_52%,#f8fafc_100%)]" />
 
       <header className="sticky top-0 z-20 border-b border-emerald-100/70 bg-white/90 backdrop-blur">
-        <div className="mx-auto flex min-h-16 w-full max-w-7xl items-center justify-between gap-6 px-4 py-3 sm:px-6 lg:px-8">
-          <Link href="/">
-            <span className="text-lg font-semibold tracking-wide text-emerald-700">KennelSync</span>
-          </Link>
-          <nav className="hidden items-center gap-5 text-sm text-slate-700 lg:flex">
-            <a href="/#features" className="transition hover:text-emerald-700">Features</a>
-            <a href="/#for-owners" className="transition hover:text-emerald-700">For Owners</a>
-            <a href="/#for-employees" className="transition hover:text-emerald-700">For Employees</a>
-            <a href="/#for-customers" className="transition hover:text-emerald-700">For Customers</a>
-            <a href="/#contact-professional" className="transition hover:text-emerald-700">Contact a Professional</a>
+        <div className="mx-auto flex w-full max-w-7xl flex-col gap-3 px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-y-2 lg:px-8">
+          <div className="flex items-center justify-between gap-4 sm:contents">
+            <Link href="/">
+              <span className="text-lg font-semibold tracking-wide text-emerald-700">KennelSync</span>
+            </Link>
+            <nav className="flex sm:hidden items-center gap-2 text-sm">
+              <Link href="/login?mode=login">
+                <Button
+                  variant="ghost"
+                  className="h-9 rounded-full px-3 text-slate-700 hover:bg-emerald-50 hover:text-emerald-700"
+                >
+                  Login
+                </Button>
+              </Link>
+              <Link href="/signup">
+                <Button size="sm" className="h-9 rounded-full bg-emerald-500 px-3 text-white hover:bg-emerald-600">
+                  Sign Up
+                </Button>
+              </Link>
+            </nav>
+          </div>
+          <nav className="flex w-full flex-wrap items-center gap-x-4 gap-y-2 text-sm text-slate-700 sm:flex-1 sm:justify-center lg:w-auto lg:flex-none">
+            <Link href="/features" className="transition hover:text-emerald-700">
+              Features
+            </Link>
+            <Link href="/owners" className="transition hover:text-emerald-700">
+              For Owners
+            </Link>
+            <Link href="/employees" className="transition hover:text-emerald-700">
+              For Employees
+            </Link>
+            <Link href="/customers" className="transition hover:text-emerald-700">
+              For Customers
+            </Link>
+            <Link href="/contact" className="transition hover:text-emerald-700">
+              Book a Demo
+            </Link>
           </nav>
-          <nav className="flex items-center gap-2 text-sm">
+          <nav className="hidden items-center gap-2 text-sm sm:flex">
             <Link href="/login?mode=login">
               <Button
                 variant="ghost"
@@ -39,11 +68,8 @@ export default function WebsiteLayout({ children }: { children: React.ReactNode 
                 Login
               </Button>
             </Link>
-            <Link href="/login?mode=signup">
-              <Button
-                size="sm"
-                className="h-9 rounded-full bg-emerald-500 px-4 text-white hover:bg-emerald-600"
-              >
+            <Link href="/signup">
+              <Button size="sm" className="h-9 rounded-full bg-emerald-500 px-4 text-white hover:bg-emerald-600">
                 Sign Up
               </Button>
             </Link>

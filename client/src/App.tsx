@@ -18,6 +18,13 @@ import {
   WebsitePrivacy,
   WebsiteTerms,
 } from "./pages/WebsitePages";
+import {
+  WebsiteMarketingContact,
+  WebsiteMarketingCustomers,
+  WebsiteMarketingEmployees,
+  WebsiteMarketingFeatures,
+  WebsiteMarketingOwners,
+} from "./pages/MarketingSitePages";
 import Onboarding from "./pages/Onboarding";
 import { getOnboardingState } from "./lib/onboarding";
 import { useMemo, useState } from "react";
@@ -158,6 +165,15 @@ function PublicWebsiteRoutes() {
         <Route path="/privacy" component={WebsitePrivacy} />
         <Route path="/terms" component={WebsiteTerms} />
         <Route path="/help" component={WebsiteHelp} />
+        <Route path="/features" component={WebsiteMarketingFeatures} />
+        <Route path="/owners" component={WebsiteMarketingOwners} />
+        <Route path="/employees" component={WebsiteMarketingEmployees} />
+        <Route path="/customers" component={WebsiteMarketingCustomers} />
+        <Route path="/contact" component={WebsiteMarketingContact} />
+        <Route path="/demo" component={WebsiteMarketingContact} />
+        <Route path="/signup">
+          <Redirect to="/login?mode=signup" />
+        </Route>
         <Route path="/login" component={WebsiteAuth} />
         <Route component={WebsiteHome} />
       </Switch>
@@ -178,7 +194,14 @@ function AppWithKennel() {
     "/privacy",
     "/terms",
     "/help",
+    "/features",
+    "/owners",
+    "/employees",
+    "/customers",
+    "/contact",
+    "/demo",
     "/login",
+    "/signup",
   ]);
   const isPublicPath = publicPaths.has(location);
 
