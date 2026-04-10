@@ -43,40 +43,40 @@ export function WebsiteHome() {
     <div className="relative">
       <section className="relative overflow-hidden border-b border-emerald-100/70">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_8%_20%,rgba(16,185,129,0.12),transparent_35%),radial-gradient(circle_at_90%_20%,rgba(16,185,129,0.1),transparent_40%),linear-gradient(180deg,#f8fffb_0%,#ffffff_55%,#f8fafc_100%)]" />
-        <div className="relative mx-auto grid max-w-7xl gap-12 px-4 pb-20 pt-16 sm:px-6 lg:grid-cols-2 lg:items-center lg:gap-14 lg:px-8 lg:pt-20">
+        <div className="relative mx-auto grid max-w-7xl gap-10 px-4 pb-16 pt-12 sm:px-6 sm:pb-20 sm:pt-16 lg:grid-cols-2 lg:items-center lg:gap-14 lg:px-8 lg:pt-20">
           <div>
             <div className="inline-flex items-center rounded-full border border-emerald-200 bg-white/90 px-3 py-1 text-xs font-medium text-emerald-700">
               Built for professional kennel operations
             </div>
-            <h1 className="mt-5 text-balance text-4xl font-semibold leading-tight text-slate-900 sm:text-5xl lg:text-6xl">
+            <h1 className="mt-4 text-balance text-3xl font-semibold leading-tight text-slate-900 sm:mt-5 sm:text-5xl lg:text-6xl">
               KennelSync is the operating system for modern kennel teams.
             </h1>
-            <p className="mt-5 max-w-xl text-base leading-relaxed text-slate-600 sm:text-lg">
+            <p className="mt-4 max-w-xl text-base leading-relaxed text-slate-600 sm:mt-5 sm:text-lg">
               One platform for bookings, dog profiles, rooms, staff workflows, and customer touchpoints—designed for real
               pet care businesses.
             </p>
-            <div className="mt-8 flex flex-wrap gap-3">
+            <div className="mt-7 flex flex-col gap-3 sm:mt-8 sm:flex-row sm:flex-wrap">
               <Link href="/login?mode=signup">
-                <Button className="h-11 rounded-full bg-emerald-600 px-7 text-sm font-semibold text-white hover:bg-emerald-700">
+                <Button className="h-11 w-full rounded-full bg-emerald-600 px-7 text-sm font-semibold text-white hover:bg-emerald-700 sm:w-auto">
                   Start Free
                 </Button>
               </Link>
               <Link href="/contact">
-                <Button variant="outline" className="h-11 rounded-full border-slate-300 px-7 text-sm font-semibold">
+                <Button variant="outline" className="h-11 w-full rounded-full border-slate-300 px-7 text-sm font-semibold sm:w-auto">
                   Book a Demo
                 </Button>
               </Link>
             </div>
           </div>
-          <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-xl shadow-emerald-100/40 sm:p-5">
-            <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-5">
+          <div className="rounded-3xl border border-slate-200 bg-white p-3 shadow-xl shadow-emerald-100/40 sm:p-5">
+            <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-4 sm:p-5">
               <div className="mb-4 flex items-center justify-between">
                 <p className="text-sm font-semibold text-slate-900">App preview</p>
                 <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
                   Owner Dashboard
                 </span>
               </div>
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
                 <div className="rounded-xl border border-slate-200 bg-white p-3">
                   <p className="text-xs text-slate-500">Today&apos;s occupancy</p>
                   <p className="mt-2 text-2xl font-semibold text-slate-900">78%</p>
@@ -99,7 +99,7 @@ export function WebsiteHome() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+      <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8">
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.12em] text-emerald-700">At a glance</p>
@@ -114,7 +114,7 @@ export function WebsiteHome() {
             </Button>
           </Link>
         </div>
-        <div className="mt-10 grid gap-4 md:grid-cols-3">
+        <div className="mt-8 grid gap-4 md:mt-10 md:grid-cols-3">
           {previews.map((p) => (
             <div key={p.label} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
               <div className="flex aspect-[16/10] items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50">
@@ -128,7 +128,7 @@ export function WebsiteHome() {
       </section>
 
       <section className="border-y border-slate-200 bg-slate-50/60">
-        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+        <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8">
           <p className="text-sm font-semibold uppercase tracking-[0.12em] text-emerald-700">Who it&apos;s for</p>
           <h2 className="mt-2 text-2xl font-semibold text-slate-900 sm:text-3xl">Built for every role</h2>
           <div className="mt-10 grid gap-5 lg:grid-cols-3">
@@ -151,19 +151,19 @@ export function WebsiteHome() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-4 py-16 text-center sm:px-6 sm:py-20 lg:px-8">
+      <section className="mx-auto max-w-7xl px-4 py-14 text-center sm:px-6 sm:py-20 lg:px-8">
         <h2 className="text-2xl font-semibold text-slate-900 sm:text-3xl">Ready to go deeper?</h2>
         <p className="mx-auto mt-3 max-w-xl text-slate-600">
           Explore features by role, or talk to us about rollout and training.
         </p>
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+        <div className="mt-8 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:flex-wrap sm:items-center">
           <Link href="/login?mode=signup">
-            <Button className="h-11 rounded-full bg-emerald-600 px-7 text-sm font-semibold text-white hover:bg-emerald-700">
+            <Button className="h-11 w-full rounded-full bg-emerald-600 px-7 text-sm font-semibold text-white hover:bg-emerald-700 sm:w-auto">
               Sign Up
             </Button>
           </Link>
           <Link href="/contact">
-            <Button variant="outline" className="h-11 rounded-full border-slate-300 px-7 text-sm font-semibold">
+            <Button variant="outline" className="h-11 w-full rounded-full border-slate-300 px-7 text-sm font-semibold sm:w-auto">
               Contact a Professional
             </Button>
           </Link>

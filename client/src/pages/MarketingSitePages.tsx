@@ -23,12 +23,12 @@ function MarketingHero({
   return (
     <section className="relative overflow-hidden border-b border-emerald-100/70">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_8%_20%,rgba(16,185,129,0.1),transparent_38%),linear-gradient(180deg,#f8fffb_0%,#ffffff_70%)]" />
-      <PageSection className="relative py-16 sm:py-20 lg:py-24">
-        <p className="text-sm font-semibold uppercase tracking-[0.12em] text-emerald-700">{eyebrow}</p>
-        <h1 className="mt-4 max-w-3xl text-balance text-4xl font-semibold leading-tight text-slate-900 sm:text-5xl">
+      <PageSection className="relative py-12 sm:py-16 lg:py-24">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700 sm:text-sm">{eyebrow}</p>
+        <h1 className="mt-3 max-w-3xl text-balance text-3xl font-semibold leading-tight text-slate-900 sm:mt-4 sm:text-5xl">
           {title}
         </h1>
-        <p className="mt-5 max-w-2xl text-lg leading-relaxed text-slate-600">{subtitle}</p>
+        <p className="mt-4 max-w-2xl text-base leading-relaxed text-slate-600 sm:mt-5 sm:text-lg">{subtitle}</p>
         {children ? <div className="mt-8">{children}</div> : null}
       </PageSection>
     </section>
@@ -37,7 +37,7 @@ function MarketingHero({
 
 function ScreenshotPlaceholder({ label }: { label: string }) {
   return (
-    <div className="flex aspect-[16/10] items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50">
+    <div className="flex aspect-[4/3] items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 sm:aspect-[16/10]">
       <span className="px-4 text-center text-sm font-medium text-slate-500">{label}</span>
     </div>
   );
@@ -61,16 +61,16 @@ function BottomCTA({
   return (
     <section className="border-t border-slate-200 bg-slate-50/80">
       <PageSection className="py-16 text-center sm:py-20">
-        <h2 className="text-2xl font-semibold text-slate-900 sm:text-3xl">{headline}</h2>
-        <p className="mx-auto mt-3 max-w-xl text-slate-600">{sub}</p>
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+        <h2 className="text-balance text-2xl font-semibold text-slate-900 sm:text-3xl">{headline}</h2>
+        <p className="mx-auto mt-3 max-w-xl text-pretty text-slate-600">{sub}</p>
+        <div className="mt-8 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:flex-wrap sm:items-center">
           <Link href={primaryHref}>
-            <Button className="h-11 rounded-full bg-emerald-600 px-7 text-sm font-semibold text-white hover:bg-emerald-700">
+            <Button className="h-11 w-full rounded-full bg-emerald-600 px-7 text-sm font-semibold text-white hover:bg-emerald-700 sm:w-auto">
               {primaryLabel}
             </Button>
           </Link>
           <Link href={secondaryHref}>
-            <Button variant="outline" className="h-11 rounded-full border-slate-300 px-7 text-sm font-semibold">
+            <Button variant="outline" className="h-11 w-full rounded-full border-slate-300 px-7 text-sm font-semibold sm:w-auto">
               {secondaryLabel}
             </Button>
           </Link>
@@ -115,7 +115,7 @@ export function WebsiteMarketingFeatures() {
         title="Everything your kennel needs to run day-to-day—without the clutter."
         subtitle="KennelSync connects bookings, rooms, dog records, staff tasks, and customer touchpoints into one professional platform."
       />
-      <PageSection className="py-16 sm:py-20">
+      <PageSection className="py-14 sm:py-20">
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {pillars.map((p) => (
             <Card key={p.title} className="rounded-2xl border-slate-200 bg-white shadow-sm">
@@ -127,7 +127,7 @@ export function WebsiteMarketingFeatures() {
           ))}
         </div>
       </PageSection>
-      <PageSection className="pb-16 sm:pb-20">
+      <PageSection className="pb-14 sm:pb-20">
         <h2 className="text-2xl font-semibold text-slate-900 sm:text-3xl">Product gallery</h2>
         <p className="mt-2 max-w-2xl text-slate-600">
           Swap these placeholders for real screenshots in <code className="rounded bg-slate-100 px-1.5 py-0.5 text-sm">MarketingSitePages.tsx</code>{" "}
@@ -267,26 +267,26 @@ function OwnersBookDemoSection() {
           backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
         }}
       />
-      <PageSection className="relative py-14 sm:py-16 lg:py-20">
+      <PageSection className="relative py-12 sm:py-16 lg:py-20">
         <div className="mx-auto max-w-2xl text-center">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-400/95">For kennel owners</p>
           <h2 className="mt-4 text-balance text-2xl font-semibold leading-tight text-white sm:text-3xl lg:text-4xl">
             Book a demo tailored to your kennel
           </h2>
-          <p className="mt-4 text-pretty text-base leading-relaxed text-slate-300 sm:text-lg">
+          <p className="mt-4 text-pretty text-[15px] leading-relaxed text-slate-300 sm:text-lg">
             Walk through owner workflows with our team—services, rooms, staff handoffs, and how you&apos;ll measure
             performance as you grow. No generic tour; we focus on your operation.
           </p>
-          <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
+          <div className="mt-8 flex flex-col items-stretch justify-center gap-3 sm:mt-9 sm:flex-row sm:flex-wrap sm:items-center">
             <Link href="/contact">
-              <Button className="h-12 rounded-full bg-emerald-500 px-8 text-sm font-semibold text-white shadow-lg shadow-emerald-950/40 hover:bg-emerald-400">
+              <Button className="h-12 w-full rounded-full bg-emerald-500 px-8 text-sm font-semibold text-white shadow-lg shadow-emerald-950/40 hover:bg-emerald-400 sm:w-auto">
                 Book a Demo
               </Button>
             </Link>
             <a href="mailto:support@kennelsync.com?subject=KennelSync%20Owner%20Demo">
               <Button
                 variant="outline"
-                className="h-12 rounded-full border-white/25 bg-white/5 px-7 text-sm font-semibold text-white hover:bg-white/10 hover:text-white"
+                className="h-12 w-full rounded-full border-white/25 bg-white/5 px-7 text-sm font-semibold text-white hover:bg-white/10 hover:text-white sm:w-auto"
               >
                 Email us
               </Button>
@@ -332,25 +332,25 @@ export function WebsiteMarketingOwners() {
     <div>
       <section className="relative overflow-hidden border-b border-emerald-100/70">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_8%_20%,rgba(16,185,129,0.1),transparent_38%),linear-gradient(180deg,#f8fffb_0%,#ffffff_72%)]" />
-        <PageSection className="relative pb-20 pt-14 sm:pb-24 sm:pt-16 lg:pb-28 lg:pt-20">
-          <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
+        <PageSection className="relative pb-16 pt-12 sm:pb-24 sm:pt-16 lg:pb-28 lg:pt-20">
+          <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
             <div className="order-2 lg:order-1">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">For owners</p>
-              <h1 className="mt-4 text-balance text-4xl font-semibold leading-tight text-slate-900 sm:text-5xl">
+              <h1 className="mt-3 text-balance text-3xl font-semibold leading-tight text-slate-900 sm:mt-4 sm:text-5xl">
                 Command your kennel with clarity—not spreadsheets and side channels.
               </h1>
-              <p className="mt-5 max-w-xl text-pretty text-lg leading-relaxed text-slate-600">
+              <p className="mt-4 max-w-xl text-pretty text-base leading-relaxed text-slate-600 sm:mt-5 sm:text-lg">
                 Set the standard for how your team operates: services, rooms, bookings, and financial visibility in one
                 trusted system your staff and customers can rely on.
               </p>
-              <div className="mt-8 flex flex-wrap gap-3">
+              <div className="mt-7 flex flex-col gap-3 sm:mt-8 sm:flex-row sm:flex-wrap">
                 <Link href="/contact">
-                  <Button className="h-11 rounded-full bg-emerald-600 px-7 text-sm font-semibold text-white hover:bg-emerald-700">
+                  <Button className="h-11 w-full rounded-full bg-emerald-600 px-7 text-sm font-semibold text-white hover:bg-emerald-700 sm:w-auto">
                     Book a Demo
                   </Button>
                 </Link>
                 <Link href="/login?mode=signup">
-                  <Button variant="outline" className="h-11 rounded-full border-slate-300 px-7 text-sm font-semibold">
+                  <Button variant="outline" className="h-11 w-full rounded-full border-slate-300 px-7 text-sm font-semibold sm:w-auto">
                     Start Free
                   </Button>
                 </Link>
@@ -363,12 +363,12 @@ export function WebsiteMarketingOwners() {
         </PageSection>
       </section>
 
-      <PageSection className="py-16 sm:py-20">
+      <PageSection className="py-14 sm:py-20">
         <div className="mx-auto max-w-2xl text-center">
           <p className="text-sm font-semibold uppercase tracking-[0.12em] text-emerald-700">Why owners choose KennelSync</p>
           <h2 className="mt-3 text-2xl font-semibold text-slate-900 sm:text-3xl">Built for how you actually run the business</h2>
         </div>
-        <div className="mt-12 grid gap-5 sm:grid-cols-2">
+        <div className="mt-9 grid gap-4 sm:mt-12 sm:gap-5 sm:grid-cols-2">
           {ownerValues.map(({ icon: Icon, title, body }) => (
             <Card key={title} className="rounded-2xl border-slate-200 bg-white shadow-sm">
               <CardHeader className="flex flex-row items-start gap-4 space-y-0 pb-2">
@@ -385,7 +385,7 @@ export function WebsiteMarketingOwners() {
 
       <OwnersBookDemoSection />
 
-      <PageSection className="pb-16 pt-4 sm:pb-20">
+      <PageSection className="pb-14 pt-4 sm:pb-20">
         <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-6 sm:p-8">
           <h3 className="text-lg font-semibold text-slate-900">Reporting, brand, and scale</h3>
           <p className="mt-2 max-w-3xl text-slate-600">
@@ -415,7 +415,7 @@ export function WebsiteMarketingEmployees() {
         title="Spend less time hunting information—and more time caring for dogs."
         subtitle="KennelSync gives front-line staff clear tasks, accurate booking context, and room assignments that match what’s happening on the floor."
       />
-      <PageSection className="py-16 sm:py-20">
+      <PageSection className="py-14 sm:py-20">
         <div className="grid gap-5 md:grid-cols-2">
           {[
             {
@@ -444,7 +444,7 @@ export function WebsiteMarketingEmployees() {
           ))}
         </div>
       </PageSection>
-      <PageSection className="pb-16 sm:pb-20">
+      <PageSection className="pb-14 sm:pb-20">
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
           <h2 className="text-xl font-semibold text-slate-900">Employee workflow preview</h2>
           <p className="mt-2 text-sm text-slate-600">Replace with a real screenshot of Today / Check-in / Rooms.</p>
@@ -473,7 +473,7 @@ export function WebsiteMarketingCustomers() {
         title="A booking experience that feels as professional as your kennel."
         subtitle="Pet parents get clear steps to reserve stays, manage dog profiles, and understand status—without overwhelming your inbox."
       />
-      <PageSection className="py-16 sm:py-20">
+      <PageSection className="py-14 sm:py-20">
         <div className="grid gap-5 lg:grid-cols-3">
           <Card className="rounded-2xl border-slate-200 bg-white shadow-sm">
             <CardHeader>
@@ -501,7 +501,7 @@ export function WebsiteMarketingCustomers() {
           </Card>
         </div>
       </PageSection>
-      <PageSection className="pb-16 sm:pb-20">
+      <PageSection className="pb-14 sm:pb-20">
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
           <h2 className="text-xl font-semibold text-slate-900">Customer experience preview</h2>
           <div className="mt-6 grid gap-4 sm:grid-cols-2">
@@ -543,7 +543,7 @@ export function WebsiteMarketingContact() {
           </Link>
         </div>
       </MarketingHero>
-      <PageSection className="py-16 sm:py-20">
+      <PageSection className="py-14 sm:py-20">
         <div className="grid gap-8 lg:grid-cols-2">
           <Card className="rounded-2xl border-slate-200 bg-white shadow-sm">
             <CardHeader>
