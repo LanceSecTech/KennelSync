@@ -309,6 +309,16 @@ function OnboardingStep(props: {
   const [selectedKennelId, setSelectedKennelId] = useState<string>("");
   const [, setLocation] = useLocation();
 
+  const openKennelProfile = () => {
+    const targetRoute = "/kennel";
+    console.log("[Onboarding] Open Kennel Profile clicked", {
+      clicked: true,
+      targetRoute,
+      kennelId,
+    });
+    setLocation(targetRoute);
+  };
+
   const content = useMemo(() => {
     if (step === 0) {
       return <p className="text-sm text-slate-700">Welcome. This setup will help tailor the app to your {role} workflow.</p>;
@@ -517,7 +527,7 @@ function OnboardingStep(props: {
       return (
         <div className="space-y-2 text-sm text-slate-700">
           <p>Set up kennel profile details: name, address, phone, email, and bio.</p>
-          <Button variant="outline" onClick={() => setLocation("/kennel")}>Open Kennel Profile</Button>
+          <Button variant="outline" onClick={openKennelProfile}>Open Kennel Profile</Button>
         </div>
       );
     }
@@ -534,7 +544,7 @@ function OnboardingStep(props: {
         return (
           <div className="space-y-3 text-sm text-slate-700">
             <p className="text-amber-800">Create your kennel first, then come back to choose a plan.</p>
-            <Button variant="outline" onClick={() => setLocation("/kennel")}>Open Kennel Profile</Button>
+            <Button variant="outline" onClick={openKennelProfile}>Open Kennel Profile</Button>
           </div>
         );
       }
@@ -601,6 +611,7 @@ function OnboardingStep(props: {
     linkedKennels,
     selectedKennelId,
     setLocation,
+    openKennelProfile,
     updateData,
     linkToKennel,
     toggleFavorite,

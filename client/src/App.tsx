@@ -120,6 +120,27 @@ function RoleRouter() {
   }
 }
 
+/** While owner onboarding runs, RoleRouter is not mounted — deep links must still render real pages. */
+function OwnerOnboardingRoutes({
+  user,
+  onOnboardingComplete,
+}: {
+  user: NonNullable<ReturnType<typeof useAuth>["user"]>;
+  onOnboardingComplete: () => void;
+}) {
+  return (
+    <Switch>
+      <Route path="/kennel" component={KennelProfile} />
+      <Route path="/rooms" component={RoomManagement} />
+      <Route path="/settings" component={Settings} />
+      <Route path="/reports" component={OwnerReports} />
+      <Route>
+        <Onboarding user={user} onComplete={onOnboardingComplete} />
+      </Route>
+    </Switch>
+  );
+}
+
 function PublicWebsiteRoutes() {
   return (
     <WebsiteLayout>
@@ -187,13 +208,23 @@ function AppWithKennel() {
     <KennelProvider userRole={user.role} userKennelId={user.kennelId ?? null}>
       <DashboardLayout>
         {needsOnboarding ? (
-          <Onboarding
-            user={user}
-            onComplete={() => {
-              setCompletedNow(true);
-              setLocation("/app");
-            }}
-          />
+          user.role === "owner" ? (
+            <OwnerOnboardingRoutes
+              user={user}
+              onOnboardingComplete={() => {
+                setCompletedNow(true);
+                setLocation("/app");
+              }}
+            />
+          ) : (
+            <Onboarding
+              user={user}
+              onComplete={() => {
+                setCompletedNow(true);
+                setLocation("/app");
+              }}
+            />
+          )
         ) : (
           <RoleRouter />
         )}
