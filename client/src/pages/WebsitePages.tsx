@@ -42,7 +42,7 @@ export function WebsiteHome() {
     <div className="relative">
       <section className="relative overflow-hidden border-b border-emerald-100/70">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_8%_20%,rgba(16,185,129,0.12),transparent_35%),radial-gradient(circle_at_90%_20%,rgba(16,185,129,0.1),transparent_40%),linear-gradient(180deg,#f8fffb_0%,#ffffff_55%,#f8fafc_100%)]" />
-        <div className="relative mx-auto grid max-w-7xl gap-10 px-4 pb-16 pt-12 sm:px-6 sm:pb-20 sm:pt-16 lg:grid-cols-2 lg:items-center lg:gap-14 lg:px-8 lg:pt-20">
+        <div className="relative mx-auto grid max-w-7xl gap-7 px-4 pb-12 pt-10 sm:gap-9 sm:px-6 sm:pb-20 sm:pt-16 lg:grid-cols-2 lg:items-center lg:gap-14 lg:px-8 lg:pt-20">
           <div>
             <div className="inline-flex items-center rounded-full border border-emerald-200 bg-white/90 px-3 py-1 text-xs font-medium text-emerald-700">
               Built for professional kennel operations
@@ -67,15 +67,17 @@ export function WebsiteHome() {
               </Link>
             </div>
           </div>
-          <div className="rounded-3xl border border-slate-200 bg-white p-3 shadow-xl shadow-emerald-100/40 sm:p-5">
-            <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-3 sm:p-4">
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-2 sm:mb-4">
-                <p className="text-sm font-semibold text-slate-900">App preview</p>
-                <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
-                  Live carousel
-                </span>
+          <div className="mx-auto w-full max-w-md min-w-0 lg:mx-0 lg:max-w-none">
+            <div className="rounded-2xl border border-slate-200 bg-white p-2 shadow-lg shadow-emerald-100/30 sm:rounded-3xl sm:p-4 sm:shadow-xl sm:shadow-emerald-100/40 md:p-5">
+              <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-2 sm:rounded-2xl sm:p-4">
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-2 sm:mb-3 md:mb-4">
+                  <p className="text-xs font-semibold text-slate-900 sm:text-sm">App preview</p>
+                  <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700 sm:px-2.5 sm:py-1 sm:text-xs">
+                    Live carousel
+                  </span>
+                </div>
+                <MarketingScreenshotSlideshow slides={MARKETING_HOME_HERO_SLIDES} embedded compactMobile />
               </div>
-              <MarketingScreenshotSlideshow slides={MARKETING_HOME_HERO_SLIDES} embedded />
             </div>
           </div>
         </div>
@@ -96,7 +98,7 @@ export function WebsiteHome() {
             </Button>
           </Link>
         </div>
-        <div className="mx-auto mt-8 max-w-3xl md:mt-10">
+        <div className="mx-auto mt-6 min-w-0 max-w-3xl md:mt-10">
           <MarketingScreenshotSlideshow slides={MARKETING_HOME_GLANCE_SLIDES} />
         </div>
       </section>

@@ -169,7 +169,7 @@ function OwnerHeroPreviewPanel() {
           </div>
         </div>
         <div className="relative mt-2 overflow-hidden rounded-2xl border border-slate-100 bg-slate-50 p-2 sm:p-2.5">
-          <MarketingScreenshotSlideshow slides={OWNER_HERO_SLIDES} embedded autoplayIntervalMs={7000} />
+          <MarketingScreenshotSlideshow slides={OWNER_HERO_SLIDES} embedded compactMobile autoplayIntervalMs={7000} />
         </div>
       </div>
 
