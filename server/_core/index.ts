@@ -6,6 +6,7 @@ import { createExpressMiddleware } from "@trpc/server/adapters/express";
 // OAuth removed - using Supabase Auth instead
 import { appRouter } from "../routers";
 import { createContext } from "./context";
+import { logDevBackendSupabaseEnv } from "./logDevSupabaseEnv";
 import { serveStatic, setupVite } from "./vite";
 
 process.on("uncaughtException", (err) => {
@@ -58,6 +59,8 @@ function readCorsAllowedOrigins(): string[] {
 async function startServer() {
   const host = "0.0.0.0";
   const port = Number(process.env.PORT) || 3000;
+
+  logDevBackendSupabaseEnv();
 
   console.log("[startup] KennelSync server bootstrap starting…");
   console.log("[startup] NODE_ENV=%s", process.env.NODE_ENV ?? "(unset)");

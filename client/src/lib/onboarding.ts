@@ -10,6 +10,8 @@ export type OnboardingState = {
 
 const VERSION = "v2";
 
+/** Step progress only; completion is stored in `users.onboarding_completed` (see `auth.completeOnboarding`). */
+
 function keyForUser(userId: string) {
   return `kennelsync_onboarding_${VERSION}_${userId}`;
 }

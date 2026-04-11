@@ -1,6 +1,6 @@
 import { BadgeIconGlyph } from "@/lib/dogBadgeIcons";
 
-type BadgeItem = {
+export type BadgeItem = {
   key: string;
   name: string;
   description?: string;

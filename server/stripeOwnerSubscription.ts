@@ -34,11 +34,8 @@ export async function createOwnerSubscriptionCheckoutSession(params: {
   userEmail: string | null | undefined;
   origin: string;
 }): Promise<string | null> {
-  if (!stripe) {
-    throw new Error("Stripe is not configured");
-  }
-  if (!PRICE_ID) {
-    throw new Error("STRIPE_OWNER_SUBSCRIPTION_PRICE_ID is not set");
+  if (!stripe || !PRICE_ID) {
+    return null;
   }
   const kennel = await db.getKennelById(params.kennelId);
   const name = String((kennel as Record<string, unknown>).name || "Kennel");
@@ -48,7 +45,7 @@ export async function createOwnerSubscriptionCheckoutSession(params: {
     name,
   );
   if (!custId) {
-    throw new Error("Could not create or load Stripe customer for kennel");
+    return null;
   }
   const base = params.origin.replace(/\/$/, "");
   const session = await stripe.checkout.sessions.create({

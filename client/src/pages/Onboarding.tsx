@@ -12,7 +12,13 @@ import { getOnboardingState, saveOnboardingState, type AppRole, type OnboardingS
 import { toast } from "sonner";
 
 type Props = {
-  user: { id: string; email?: string | null; role: string; kennelId?: number | null };
+  user: {
+    id: string;
+    email?: string | null;
+    role: string;
+    kennelId?: number | null;
+    onboardingCompleted?: boolean;
+  };
   onComplete: () => void;
 };
 
@@ -47,6 +53,9 @@ export default function Onboarding({ user, onComplete }: Props) {
   const [, setLocation] = useLocation();
   const { allKennels, linkedKennels, linkToKennel, toggleFavorite } = useKennel();
   const utils = trpc.useUtils();
+  const completeOnboardingMut = trpc.auth.completeOnboarding.useMutation({
+    onSuccess: () => void utils.auth.me.invalidate(),
+  });
   const saveProfile = trpc.auth.updateProfile.useMutation();
   const createDog = trpc.dog.create.useMutation();
   const updateDog = trpc.dog.update.useMutation();
@@ -125,8 +134,19 @@ export default function Onboarding({ user, onComplete }: Props) {
     setState((prev) => ({ ...prev, step: Math.max(prev.step - 1, 0), updatedAt: new Date().toISOString() }));
   }
 
-  function finish() {
-    const completedState = { ...state, step: steps.length - 1, completed: true, updatedAt: new Date().toISOString() };
+  async function finish() {
+    try {
+      await completeOnboardingMut.mutateAsync();
+    } catch (err: any) {
+      toast.error(err?.message || "Could not save completion. Try again.");
+      return;
+    }
+    const completedState = {
+      ...state,
+      step: steps.length - 1,
+      completed: true,
+      updatedAt: new Date().toISOString(),
+    };
     setState(completedState);
     saveOnboardingState(user.id, completedState);
     onComplete();
@@ -199,6 +219,7 @@ export default function Onboarding({ user, onComplete }: Props) {
                 ? billingAccessQuery.error?.message ?? "Could not load plan"
                 : null
             }
+            ownerPlanBillingAccess={billingAccess}
             ownerPlanLoading={
               startTrialMut.isPending ||
               subscriptionCheckoutMut.isPending ||
@@ -240,7 +261,7 @@ export default function Onboarding({ user, onComplete }: Props) {
                     !billingAccessQuery.isError &&
                     (billingAccessQuery.isPending || billingAccess === undefined) ? (
                     <span className="text-xs text-slate-500">Checking plan…</span>
-                  ) : billingAccess?.hasAccess ? (
+                  ) : billingAccess?.hasAccess || billingAccess?.enforced === false ? (
                     <Button onClick={next}>Continue</Button>
                   ) : (
                     <p className="text-xs text-slate-500 max-w-xs text-right">
@@ -257,7 +278,9 @@ export default function Onboarding({ user, onComplete }: Props) {
                 )}
               </div>
             ) : (
-              <Button onClick={finish}>Go to dashboard</Button>
+              <Button onClick={() => void finish()} disabled={completeOnboardingMut.isPending}>
+                {completeOnboardingMut.isPending ? "Saving…" : "Go to dashboard"}
+              </Button>
             )}
           </div>
         </CardContent>
@@ -275,6 +298,14 @@ function OnboardingStep(props: {
   ownerPlanKennelId: number | null;
   ownerPlanKennelListLoading: boolean;
   ownerPlanBillingError: string | null;
+  ownerPlanBillingAccess:
+    | {
+        enforced: boolean;
+        hasAccess: boolean;
+        stripeConfigured: boolean;
+        subscriptionPriceConfigured: boolean;
+      }
+    | undefined;
   ownerPlanLoading: boolean;
   onOwnerStartSubscription: () => Promise<void>;
   onOwnerSkipTrial: () => void;
@@ -295,6 +326,7 @@ function OnboardingStep(props: {
     ownerPlanKennelId,
     ownerPlanKennelListLoading,
     ownerPlanBillingError,
+    ownerPlanBillingAccess,
     ownerPlanLoading,
     onOwnerStartSubscription,
     onOwnerSkipTrial,
@@ -548,16 +580,46 @@ function OnboardingStep(props: {
           </div>
         );
       }
+      const access = ownerPlanBillingAccess;
+      const billingEnforced = access?.enforced !== false;
+      const canCheckout = Boolean(access?.stripeConfigured && access?.subscriptionPriceConfigured);
+
+      if (access && !access.enforced) {
+        return (
+          <div className="space-y-3 text-sm text-slate-700">
+            <p>
+              Owner subscription billing is not enforced in this environment (Stripe owner gate is off). You can continue
+              without checkout.
+            </p>
+            <p className="text-xs text-slate-500">
+              To match production behavior locally, set <code className="rounded bg-slate-100 px-1">STRIPE_SECRET_KEY</code> and{" "}
+              <code className="rounded bg-slate-100 px-1">STRIPE_OWNER_SUBSCRIPTION_PRICE_ID</code>. To keep billing optional for
+              demo/screenshots, leave <code className="rounded bg-slate-100 px-1">STRIPE_SECRET_KEY</code> unset or set{" "}
+              <code className="rounded bg-slate-100 px-1">OWNER_SUBSCRIPTION_ENFORCE=off</code>.
+            </p>
+          </div>
+        );
+      }
+
       return (
         <div className="space-y-4 text-sm text-slate-700">
           {ownerPlanBillingError ? (
             <p className="text-sm text-destructive">{ownerPlanBillingError}</p>
           ) : null}
           <p>Start your kennel with a free trial or subscribe now.</p>
+          {billingEnforced && !canCheckout ? (
+            <p className="text-xs text-amber-800 rounded-md border border-amber-200 bg-amber-50 p-2">
+              Subscription checkout is not available: configure{" "}
+              <code className="rounded bg-amber-100 px-1">STRIPE_OWNER_SUBSCRIPTION_PRICE_ID</code> on the server, or use
+              &quot;Skip for now&quot; to start a trial. If trial start fails, add{" "}
+              <code className="rounded bg-amber-100 px-1">trial_ends_at</code> to <code className="rounded bg-amber-100 px-1">kennels</code>{" "}
+              (see <code className="rounded bg-amber-100 px-1">MIGRATION_R30_kennel_stripe_subscription.sql</code>).
+            </p>
+          ) : null}
           <div className="flex flex-col gap-2 sm:flex-row">
             <Button
               type="button"
-              disabled={ownerPlanLoading}
+              disabled={ownerPlanLoading || !canCheckout}
               onClick={() => void onOwnerStartSubscription()}
             >
               Start Subscription
@@ -604,6 +666,7 @@ function OnboardingStep(props: {
     ownerPlanKennelId,
     ownerPlanKennelListLoading,
     ownerPlanBillingError,
+    ownerPlanBillingAccess,
     ownerPlanLoading,
     onOwnerStartSubscription,
     onOwnerSkipTrial,

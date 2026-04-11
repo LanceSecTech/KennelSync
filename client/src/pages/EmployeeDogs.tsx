@@ -4,7 +4,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dog, Utensils, Pill, Heart, Phone, Shield, AlertCircle, CheckCircle2, Clock, CalendarDays, LogOut } from "lucide-react";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useSearch } from "wouter";
 import { formatDate, parseLocalDate, todayString } from "@/lib/dateUtils";
 import { DogBadgesInline } from "@/components/DogBadgesInline";
 import { CheckoutStayDialog } from "@/components/CheckoutStayDialog";
@@ -29,6 +30,7 @@ function dogIdsForBooking(b: any): number[] {
 
 export default function EmployeeDogs() {
   const { activeKennelId: kennelId } = useKennel();
+  const search = useSearch();
   const utils = trpc.useUtils();
   const { data: bookings, isLoading } = trpc.booking.byKennel.useQuery(
     { kennelId: kennelId! },
@@ -36,6 +38,14 @@ export default function EmployeeDogs() {
   );
   const [selectedDogId, setSelectedDogId] = useState<number | null>(null);
   const [checkoutBooking, setCheckoutBooking] = useState<any | null>(null);
+
+  useEffect(() => {
+    const q = new URLSearchParams(search);
+    const raw = q.get("dogId");
+    if (raw == null || raw === "") return;
+    const n = parseInt(raw, 10);
+    if (Number.isFinite(n)) setSelectedDogId(n);
+  }, [search]);
 
   const activeBookings = useMemo(() => {
     return bookings?.filter((b) => b.status === "checked_in") || [];

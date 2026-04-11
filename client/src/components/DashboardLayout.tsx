@@ -1,5 +1,5 @@
 import { useAuth } from '@/_core/hooks/useAuth';
-import { useLocation } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { Button } from './ui/button';
 import { Settings, LogOut, Home, Calendar, AlertCircle, DollarSign, PawPrint, Clock, Dog, Plus, DoorOpen } from 'lucide-react';
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
@@ -22,13 +22,10 @@ function TopBar() {
       </div>
       
       <div className="flex items-center gap-4">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => navigate('/settings')}
-          className="text-gray-600 hover:text-gray-900"
-        >
-          <Settings className="w-5 h-5" />
+        <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-900" asChild>
+          <Link href="/settings" aria-label="Settings" title="Settings">
+            <Settings className="w-5 h-5" />
+          </Link>
         </Button>
         
         <Button

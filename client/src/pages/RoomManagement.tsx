@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Building2, DoorOpen, Plus, Edit2, Trash2, Check, X, Dog,
   ArrowRightLeft, AlertTriangle,
@@ -16,7 +17,8 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { todayString, parseLocalDate, toDateString, formatDate } from "@/lib/dateUtils";
 import { naturalSort } from "@/lib/naturalSort";
-import { DogBadgesInline } from "@/components/DogBadgesInline";
+import { DogBadgesInline, type BadgeItem } from "@/components/DogBadgesInline";
+import { cn } from "@/lib/utils";
 
 export default function RoomManagement() {
   const { activeKennelId } = useKennel();
@@ -191,9 +193,13 @@ function RoomManagerInner({ kennelId }: { kennelId: number }) {
   return (
     <div className="space-y-4">
       <Tabs defaultValue="rooms" className="w-full">
-        <TabsList className="w-full grid grid-cols-2 h-9">
-          <TabsTrigger value="rooms" className="text-xs">Rooms & Buildings</TabsTrigger>
-          <TabsTrigger value="availability" className="text-xs">Availability Calendar</TabsTrigger>
+        <TabsList className="w-full grid grid-cols-2 h-10 sm:h-9 p-1">
+          <TabsTrigger value="rooms" className="text-xs py-2 sm:py-1.5 touch-manipulation">
+            Rooms & Buildings
+          </TabsTrigger>
+          <TabsTrigger value="availability" className="text-xs py-2 sm:py-1.5 touch-manipulation">
+            Availability Calendar
+          </TabsTrigger>
         </TabsList>
 
         {/* ===== ROOMS TAB ===== */}
@@ -433,6 +439,249 @@ function RoomManagerInner({ kennelId }: { kennelId: number }) {
 
 type AvailabilityRange = "day" | "week" | "month";
 
+type CalendarRoomDay = {
+  date: string;
+  booked: boolean;
+  bookingIds?: number[];
+  dogNames?: string[];
+  dogIds?: number[];
+  occupancy: number;
+  capacity: number;
+};
+
+/** Shared grid cell for availability (desktop + mobile horizontal week/day grids). */
+function OccupancyDayCell({
+  roomId,
+  roomName,
+  day,
+  isToday,
+  cellClassName,
+  buttonCompact,
+  embedded,
+  /** Month grid: color + icon only; names and actions in tooltip / popover. */
+  monthOverview,
+  getDogCellLabel,
+  getDogTooltipLabel,
+  badgeAssignments,
+  badgeByKey,
+  setMoveDialog,
+}: {
+  roomId: number;
+  /** Used in month popover header (room column label is separate on desktop). */
+  roomName?: string;
+  day: CalendarRoomDay;
+  isToday: boolean;
+  cellClassName?: string;
+  /** Larger touch targets + text on mobile scroll grids */
+  buttonCompact?: boolean;
+  /** No grid cell borders — for month “day detail” rows */
+  embedded?: boolean;
+  monthOverview?: boolean;
+  getDogCellLabel: (day: CalendarRoomDay) => string;
+  getDogTooltipLabel: (day: CalendarRoomDay) => string;
+  badgeAssignments: unknown;
+  badgeByKey: Map<string, BadgeItem>;
+  setMoveDialog: (v: { bookingId: number; roomId: number; dogName: string; date: string } | null) => void;
+}) {
+  const [monthPopoverOpen, setMonthPopoverOpen] = useState(false);
+
+  const openMoveForDay = () => {
+    if (!day.bookingIds?.length) return;
+    const names = day.dogNames?.filter(Boolean) ?? [];
+    setMoveDialog({
+      bookingId: day.bookingIds[0],
+      roomId,
+      dogName: names.length > 0 ? names.join(", ") : `Booking #${day.bookingIds[0]}`,
+      date: day.date,
+    });
+    setMonthPopoverOpen(false);
+  };
+
+  const monthCellShell = cn(
+    embedded
+      ? "flex w-full min-w-0 items-stretch justify-stretch"
+      : "border-r border-border/60 last:border-r-0 flex items-center justify-center",
+    !embedded && isToday ? "bg-primary/5" : "",
+    !embedded &&
+      (monthOverview
+        ? "p-0.5 min-h-0"
+        : buttonCompact
+          ? "p-1.5 min-h-[3.25rem]"
+          : "p-1 min-h-9"),
+    embedded && "py-0.5",
+    cellClassName,
+  );
+
+  /** Month view: no in-cell text — status by color + icon; details on hover / tap. */
+  if (monthOverview) {
+    const occupiedBtnClass = cn(
+      "month-availability-cell w-full rounded-md flex items-center justify-center touch-manipulation min-w-0 transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
+      embedded ? "min-h-11 py-2" : "min-h-7 max-h-9 aspect-square max-w-full",
+      day.booked ? "bg-red-100 border border-red-200" : "bg-amber-100 border border-amber-200",
+    );
+    const dogIconClass = cn("h-3.5 w-3.5", day.booked ? "text-red-500" : "text-amber-500");
+
+    if (day.occupancy > 0) {
+      return (
+        <div className={monthCellShell}>
+          <Popover open={monthPopoverOpen} onOpenChange={setMonthPopoverOpen}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <PopoverTrigger asChild>
+                  <button type="button" className={occupiedBtnClass} aria-label="View booking details">
+                    <Dog className={dogIconClass} aria-hidden />
+                  </button>
+                </PopoverTrigger>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-[min(18rem,calc(100vw-2rem))] text-xs">
+                <p className="font-medium">{getDogTooltipLabel(day)}</p>
+                <p className="opacity-90">
+                  {formatDate(day.date)} · {day.occupancy}/{day.capacity} occupied
+                </p>
+                <p className="opacity-80 text-[10px] mt-1">Click or tap for details and actions</p>
+              </TooltipContent>
+            </Tooltip>
+            <PopoverContent
+              align="center"
+              side="top"
+              sideOffset={6}
+              className="w-[min(20rem,calc(100vw-2rem))] text-sm"
+            >
+              <div className="space-y-3">
+                <div>
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Room</p>
+                  <p className="font-medium leading-snug">{roomName ?? "—"}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Date</p>
+                  <p>{formatDate(day.date)}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Guests</p>
+                  <p className="font-medium">{getDogTooltipLabel(day)}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {day.occupancy} of {day.capacity} slot{day.capacity === 1 ? "" : "s"} occupied
+                    {day.booked ? " · At capacity" : ""}
+                  </p>
+                  {day.bookingIds && day.bookingIds.length > 1 && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Bookings: {day.bookingIds.map((id) => `#${id}`).join(", ")} — move one at a time
+                    </p>
+                  )}
+                </div>
+                {day.bookingIds && day.bookingIds.length > 0 && (
+                  <Button type="button" size="sm" className="w-full" onClick={openMoveForDay}>
+                    Move booking (this day only)
+                  </Button>
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
+      );
+    }
+
+    return (
+      <div className={monthCellShell}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div
+              role="img"
+              aria-label={`Available, ${formatDate(day.date)}`}
+              tabIndex={0}
+              className={cn(
+                "month-availability-cell w-full rounded-md bg-green-50 border border-green-200 flex items-center justify-center",
+                embedded ? "min-h-11 py-2" : "min-h-7 max-h-9 aspect-square max-w-full",
+              )}
+            >
+              <Check className="h-3.5 w-3.5 text-green-500 shrink-0" aria-hidden />
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="top" className="text-xs">
+            <p className="font-medium">Available</p>
+            <p className="opacity-90">{formatDate(day.date)}</p>
+          </TooltipContent>
+        </Tooltip>
+      </div>
+    );
+  }
+
+  return (
+    <div className={monthCellShell}>
+      {day.occupancy > 0 ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onClick={() => {
+                if (day.bookingIds?.length) {
+                  const names = day.dogNames?.filter(Boolean) ?? [];
+                  setMoveDialog({
+                    bookingId: day.bookingIds[0],
+                    roomId,
+                    dogName:
+                      names.length > 0 ? names.join(", ") : `Booking #${day.bookingIds[0]}`,
+                    date: day.date,
+                  });
+                }
+              }}
+              className={cn(
+                "w-full rounded flex hover:opacity-80 transition-colors cursor-pointer touch-manipulation min-w-0 items-center justify-center gap-1",
+                buttonCompact ? "min-h-[2.75rem] py-1 px-1" : "min-h-7 h-auto py-0.5 px-0.5",
+                day.booked ? "bg-red-100 border border-red-200" : "bg-amber-100 border border-amber-200",
+              )}
+            >
+              <Dog
+                className={cn(
+                  "shrink-0",
+                  buttonCompact ? "h-4 w-4" : "h-3 w-3",
+                  day.booked ? "text-red-500" : "text-amber-500",
+                )}
+              />
+              <span
+                className={cn(
+                  "font-medium min-w-0 leading-tight flex-1 text-center whitespace-normal break-words",
+                  buttonCompact ? "text-[11px]" : "text-[9px] sm:text-[10px]",
+                  day.booked ? "text-red-600" : "text-amber-600",
+                )}
+              >
+                {getDogCellLabel(day)}
+              </span>
+              <DogBadgesInline
+                badgeKeys={Array.from(
+                  new Set(
+                    (day.dogIds || []).flatMap((id: number) =>
+                      (((badgeAssignments as any)?.[String(id)] || []) as string[]).map((k: string) =>
+                        String(k).toLowerCase(),
+                      ),
+                    ),
+                  ),
+                )}
+                badgeByKey={badgeByKey}
+              />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="top" className="text-xs max-w-[min(18rem,calc(100vw-2rem))]">
+            <p className="font-medium">{getDogTooltipLabel(day)}</p>
+            <p className="text-muted-foreground">
+              {day.occupancy}/{day.capacity} occupied · Click to move (this day only)
+            </p>
+          </TooltipContent>
+        </Tooltip>
+      ) : (
+        <div
+          className={cn(
+            "w-full rounded bg-green-50 border border-green-200 flex items-center justify-center",
+            buttonCompact ? "min-h-[2.75rem]" : "h-6",
+          )}
+        >
+          <Check className={cn("text-green-500", buttonCompact ? "h-4 w-4" : "h-3 w-3")} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 function sundayOfWeekContaining(dateStr: string): string {
   const t = parseLocalDate(dateStr);
   if (!t) return dateStr;
@@ -507,6 +756,11 @@ function AvailabilityCalendar({
     return { startDate: ds[0], endDate: ds[ds.length - 1], dates: ds };
   }, [calRange, dayPick, weekPick, monthPick]);
 
+  const todayStr = todayString();
+
+  /** Month (mobile): tap a calendar day to expand room-level detail below the grid. */
+  const [mobileMonthDetailDate, setMobileMonthDetailDate] = useState<string | null>(null);
+
   /** Single date used to sync parent room list occupancy with this calendar view. */
   const occupancyContextDate = useMemo(() => {
     const today = todayString();
@@ -518,6 +772,14 @@ function AvailabilityCalendar({
     if (dates.length && today >= dates[0] && today <= dates[dates.length - 1]) return today;
     return dates[0] || today;
   }, [calRange, dayPick, dates]);
+
+  useEffect(() => {
+    if (calRange !== "month") setMobileMonthDetailDate(null);
+  }, [calRange]);
+
+  useEffect(() => {
+    setMobileMonthDetailDate(null);
+  }, [monthPick]);
 
   useEffect(() => {
     onOccupancyContextDateChange?.(occupancyContextDate);
@@ -548,17 +810,37 @@ function AvailabilityCalendar({
     { kennelId, dogIds: dogIdsFromDaily },
     { enabled: !!kennelId && dogIdsFromDaily.length > 0 },
   );
-  const badgeByKey = useMemo(
-    () => new Map(((badgeCatalog || []) as any[]).map((b: any) => [String(b.key || "").toLowerCase(), b])),
-    [badgeCatalog],
-  );
+  const badgeByKey = useMemo(() => {
+    const m = new Map<string, BadgeItem>();
+    for (const b of (badgeCatalog || []) as BadgeItem[]) {
+      m.set(String(b.key || "").toLowerCase(), b);
+    }
+    return m;
+  }, [badgeCatalog]);
 
   // Build calendar grid grouped by building, sorted naturally
   const calendarBuildings = useMemo(() => {
     if (!dailyData || !rooms.length) return [];
 
     // Build a map: roomId -> { roomName, building, days: { date -> { booked, bookingId } } }
-    const roomMap = new Map<number, { roomName: string; building: string; days: Map<string, { booked: boolean; bookingIds?: number[]; dogNames?: string[]; occupancy: number; capacity: number }> }>();
+    const roomMap = new Map<
+      number,
+      {
+        roomName: string;
+        building: string;
+        days: Map<
+          string,
+          {
+            booked: boolean;
+            bookingIds?: number[];
+            dogNames?: string[];
+            dogIds?: number[];
+            occupancy: number;
+            capacity: number;
+          }
+        >;
+      }
+    >();
 
     for (const dayEntry of dailyData) {
       for (const roomEntry of dayEntry.rooms) {
@@ -573,6 +855,7 @@ function AvailabilityCalendar({
           booked: roomEntry.booked,
           bookingIds: roomEntry.bookingIds,
           dogNames: roomEntry.dogNames,
+          dogIds: roomEntry.dogIds,
           occupancy: roomEntry.occupancy,
           capacity: roomEntry.capacity,
         });
@@ -580,7 +863,22 @@ function AvailabilityCalendar({
     }
 
     // Group by building
-    const bldgMap = new Map<string, Array<{ roomId: number; roomName: string; days: Array<{ date: string; booked: boolean; bookingIds?: number[]; dogNames?: string[]; occupancy: number; capacity: number }> }>>();
+    const bldgMap = new Map<
+      string,
+      Array<{
+        roomId: number;
+        roomName: string;
+        days: Array<{
+          date: string;
+          booked: boolean;
+          bookingIds?: number[];
+          dogNames?: string[];
+          dogIds?: number[];
+          occupancy: number;
+          capacity: number;
+        }>;
+      }>
+    >();
     for (const [roomId, info] of Array.from(roomMap.entries())) {
       const bldg = info.building;
       if (!bldgMap.has(bldg)) bldgMap.set(bldg, []);
@@ -591,6 +889,7 @@ function AvailabilityCalendar({
           booked: dayInfo?.booked ?? false,
           bookingIds: dayInfo?.bookingIds,
           dogNames: dayInfo?.dogNames,
+          dogIds: dayInfo?.dogIds,
           occupancy: dayInfo?.occupancy ?? 0,
           capacity: dayInfo?.capacity ?? 1,
         };
@@ -605,6 +904,39 @@ function AvailabilityCalendar({
         rooms: rms.sort((a, b) => naturalSort(a.roomName, b.roomName)),
       }));
   }, [dailyData, rooms, dates]);
+
+  /** Kennel-wide occupancy per date (mobile month calendar cells). */
+  const occupancyByDate = useMemo(() => {
+    const m = new Map<string, { occ: number; cap: number }>();
+    for (const d of dates) {
+      let occ = 0;
+      let cap = 0;
+      for (const b of calendarBuildings) {
+        for (const r of b.rooms) {
+          const day = r.days.find((x) => x.date === d);
+          if (day) {
+            occ += day.occupancy;
+            cap += day.capacity;
+          }
+        }
+      }
+      m.set(d, { occ, cap });
+    }
+    return m;
+  }, [calendarBuildings, dates]);
+
+  /** Padded month grid (Sun–Sat rows) for mobile. */
+  const monthMobileCells = useMemo(() => {
+    if (calRange !== "month" || dates.length === 0) return [] as (string | null)[];
+    const t0 = parseLocalDate(dates[0]);
+    if (!t0) return [];
+    const pad = t0.getDay();
+    const cells: (string | null)[] = [];
+    for (let i = 0; i < pad; i++) cells.push(null);
+    for (const d of dates) cells.push(d);
+    while (cells.length % 7 !== 0) cells.push(null);
+    return cells;
+  }, [calRange, dates]);
 
   // ===== Move Dog Dialog =====
   const [moveDialog, setMoveDialog] = useState<{ bookingId: number; roomId: number; dogName: string; date: string } | null>(null);
@@ -651,12 +983,18 @@ function AvailabilityCalendar({
       .map(([building, rms]) => ({ building, rooms: rms }));
   }, [moveDialog, rooms]);
 
-  const todayStr = todayString();
-
   const colTemplate =
     calRange === "month"
-      ? `110px repeat(${dates.length}, minmax(0, 1fr))`
+      ? `minmax(7.5rem, 8.5rem) repeat(${dates.length}, minmax(0, 1fr))`
       : `130px repeat(${dates.length}, minmax(0, 1fr))`;
+
+  /** Fixed-width day columns so the week (or single day) scrolls horizontally on small screens. */
+  const mobileHScrollColTemplate =
+    calRange === "day" && dates.length
+      ? `6.75rem minmax(10rem, 14rem)`
+      : calRange === "week" && dates.length
+        ? `6.75rem repeat(${dates.length}, minmax(5.75rem, 5.75rem))`
+        : colTemplate;
 
   const getDogCellLabel = (day: { dogNames?: string[]; bookingIds?: number[] }) => {
     const names = (day.dogNames ?? []).map((n) => String(n || "").trim()).filter(Boolean);
@@ -675,11 +1013,11 @@ function AvailabilityCalendar({
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
-        <div className="space-y-1 flex-1 min-w-[8rem]">
+      <div className="flex flex-col gap-2 md:flex-row md:flex-wrap md:items-end">
+        <div className="space-y-1 w-full md:flex-1 md:min-w-[8rem] md:w-auto">
           <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">View</Label>
           <Select value={calRange} onValueChange={(v) => setCalRange(v as AvailabilityRange)}>
-            <SelectTrigger className="h-9 text-xs">
+            <SelectTrigger className="h-11 md:h-9 text-xs w-full md:max-w-[11rem] touch-manipulation">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -690,21 +1028,21 @@ function AvailabilityCalendar({
           </Select>
         </div>
         {calRange === "day" && (
-          <div className="space-y-1 flex-1 min-w-[10rem]">
+          <div className="space-y-1 w-full md:flex-1 md:min-w-[10rem]">
             <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Date</Label>
             <Input
               type="date"
-              className="h-9 text-xs"
+              className="h-11 md:h-9 text-xs touch-manipulation"
               value={dayPick}
               onChange={(e) => setDayPick(e.target.value)}
             />
           </div>
         )}
         {calRange === "week" && (
-          <div className="space-y-1 flex-[2] min-w-[12rem]">
+          <div className="space-y-1 w-full md:flex-[2] md:min-w-[12rem]">
             <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Week</Label>
             <Select value={weekPick} onValueChange={setWeekPick}>
-              <SelectTrigger className="h-9 text-xs">
+              <SelectTrigger className="h-11 md:h-9 text-xs w-full min-w-0 touch-manipulation">
                 <SelectValue placeholder="Select week" />
               </SelectTrigger>
               <SelectContent className="max-h-[16rem]">
@@ -718,11 +1056,11 @@ function AvailabilityCalendar({
           </div>
         )}
         {calRange === "month" && (
-          <div className="space-y-1 flex-1 min-w-[10rem]">
+          <div className="space-y-1 w-full md:flex-1 md:min-w-[10rem]">
             <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Month</Label>
             <Input
               type="month"
-              className="h-9 text-xs"
+              className="h-11 md:h-9 text-xs touch-manipulation"
               value={monthPick}
               onChange={(e) => setMonthPick(e.target.value)}
             />
@@ -745,6 +1083,12 @@ function AvailabilityCalendar({
           <span className="font-medium text-foreground">{formatDate(occupancyContextDate)}</span>
           {occupancyContextDate === todayStr ? " (today)" : ""}, including day-only moves.
         </p>
+        {calRange === "month" && (
+          <p className="hidden md:block">
+            Month view uses color and icons in each cell only. Hover for a quick summary, or click for full details
+            and moves.
+          </p>
+        )}
       </div>
 
       {isLoading ? (
@@ -756,117 +1100,268 @@ function AvailabilityCalendar({
           </CardContent>
         </Card>
       ) : (
-        <div className="overflow-x-auto">
-          {calendarBuildings.map(bldg => (
-            <div key={bldg.building} className="mb-6">
-              <div className="flex items-center gap-2 mb-2">
-                <Building2 className="h-4 w-4 text-muted-foreground" />
-                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                  {bldg.building}
-                </h3>
-              </div>
-              <div className="border rounded-lg overflow-hidden overflow-x-auto">
-                {/* Header row */}
-                <div className="grid bg-muted/50 w-full" style={{ gridTemplateColumns: colTemplate }}>
-                  <div className="p-2 text-xs font-semibold text-muted-foreground border-r sticky left-0 bg-muted/50 z-[1]">Room</div>
-                  {dates.map(date => {
-                    const d = new Date(date + "T12:00:00");
-                    const isToday = date === todayStr;
-                    return (
-                      <div key={date} className={`p-1 sm:p-2 text-center border-r last:border-r-0 ${isToday ? "bg-primary/10" : ""}`}>
-                        <p className={`font-medium text-muted-foreground ${calRange === "month" ? "text-[8px] leading-tight" : "text-[10px]"}`}>
-                          {calRange === "month"
-                            ? d.toLocaleDateString("en-US", { weekday: "narrow" })
-                            : d.toLocaleDateString("en-US", { weekday: "short" })}
-                        </p>
-                        <p className={`font-bold ${calRange === "month" ? "text-[10px]" : "text-xs"} ${isToday ? "text-primary" : ""}`}>
-                          {d.getDate()}
-                        </p>
-                      </div>
-                    );
-                  })}
+        <>
+          {/* Desktop / tablet: full grid */}
+          <div className="hidden md:block overflow-x-auto">
+            {calendarBuildings.map((bldg) => (
+              <div key={bldg.building} className="mb-6">
+                <div className="flex items-center gap-2 mb-2">
+                  <Building2 className="h-4 w-4 text-muted-foreground" />
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                    {bldg.building}
+                  </h3>
                 </div>
-                {/* Room rows */}
-                {bldg.rooms.map(room => (
-                  <div key={room.roomId} className="grid border-t w-full" style={{ gridTemplateColumns: colTemplate }}>
-                    <div className="p-2 border-r flex items-center gap-1.5 sticky left-0 bg-white z-[1]">
-                      <DoorOpen className="h-3 w-3 text-muted-foreground shrink-0" />
-                      <span className="text-xs font-medium truncate">{room.roomName}</span>
+                <div className="border rounded-lg overflow-hidden overflow-x-auto">
+                  <div className="grid bg-muted/50 w-full" style={{ gridTemplateColumns: colTemplate }}>
+                    <div className="p-2 text-xs font-semibold text-muted-foreground border-r sticky left-0 bg-muted/50 z-[1]">
+                      Room
                     </div>
-                    {room.days.map(day => {
-                      const isToday = day.date === todayStr;
+                    {dates.map((date) => {
+                      const d = new Date(date + "T12:00:00");
+                      const isToday = date === todayStr;
                       return (
                         <div
-                          key={day.date}
-                          className={`p-1 border-r last:border-r-0 min-h-9 flex items-center justify-center ${isToday ? "bg-primary/5" : ""}`}
+                          key={date}
+                          className={`p-1 sm:p-2 text-center border-r last:border-r-0 ${isToday ? "bg-primary/10" : ""}`}
                         >
-                          {day.occupancy > 0 ? (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <button
-                                  onClick={() => {
-                                    if (day.bookingIds?.length) {
-                                      const names = day.dogNames?.filter(Boolean) ?? [];
-                                      setMoveDialog({
-                                        bookingId: day.bookingIds[0],
-                                        roomId: room.roomId,
-                                        dogName:
-                                          names.length > 0
-                                            ? names.join(", ")
-                                            : `Booking #${day.bookingIds[0]}`,
-                                        date: day.date,
-                                      });
-                                    }
-                                  }}
-                                  className={`w-full min-h-7 h-auto py-0.5 px-0.5 rounded flex items-center justify-center gap-1 hover:opacity-80 transition-colors cursor-pointer ${
-                                    day.booked ? "bg-red-100 border border-red-200" : "bg-amber-100 border border-amber-200"
-                                  }`}
-                                >
-                                  <Dog className={`h-3 w-3 shrink-0 ${day.booked ? "text-red-500" : "text-amber-500"}`} />
-                                  <span
-                                    className={`text-[9px] sm:text-[10px] font-medium min-w-0 flex-1 text-center leading-tight whitespace-normal break-words ${
-                                      day.booked ? "text-red-600" : "text-amber-600"
-                                    }`}
-                                  >
-                                    {getDogCellLabel(day)}
-                                  </span>
-                                  <DogBadgesInline
-                                    badgeKeys={Array.from(
-                                      new Set(
-                                        ((day as any).dogIds || []).flatMap((id: number) =>
-                                          (((badgeAssignments as any)?.[String(id)] || []) as string[]).map((k: string) =>
-                                            String(k).toLowerCase(),
-                                          ),
-                                        ),
-                                      ),
-                                    )}
-                                    badgeByKey={badgeByKey}
-                                  />
-                                </button>
-                              </TooltipTrigger>
-                              <TooltipContent side="top" className="text-xs max-w-[240px]">
-                                <p className="font-medium">
-                                  {getDogTooltipLabel(day)}
-                                </p>
-                                <p className="text-muted-foreground">{day.occupancy}/{day.capacity} occupied · Click to move (this day only)</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          ) : (
-                            <div className="w-full h-6 rounded bg-green-50 border border-green-200 flex items-center justify-center">
-                              <Check className="h-3 w-3 text-green-500" />
-                            </div>
-                          )}
+                          <p
+                            className={`font-medium text-muted-foreground ${calRange === "month" ? "text-[8px] leading-tight" : "text-[10px]"}`}
+                          >
+                            {calRange === "month"
+                              ? d.toLocaleDateString("en-US", { weekday: "narrow" })
+                              : d.toLocaleDateString("en-US", { weekday: "short" })}
+                          </p>
+                          <p
+                            className={`font-bold ${calRange === "month" ? "text-[10px]" : "text-xs"} ${isToday ? "text-primary" : ""}`}
+                          >
+                            {d.getDate()}
+                          </p>
                         </div>
                       );
                     })}
                   </div>
-                ))}
+                  {bldg.rooms.map((room) => (
+                    <div key={room.roomId} className="grid border-t w-full" style={{ gridTemplateColumns: colTemplate }}>
+                      <div className="p-2 border-r flex items-center gap-1.5 sticky left-0 bg-white z-[1]">
+                        <DoorOpen className="h-3 w-3 text-muted-foreground shrink-0" />
+                        <span className="text-xs font-medium truncate">{room.roomName}</span>
+                      </div>
+                      {room.days.map((day) => (
+                        <OccupancyDayCell
+                          key={day.date}
+                          roomId={room.roomId}
+                          roomName={room.roomName}
+                          day={day}
+                          isToday={day.date === todayStr}
+                          monthOverview={calRange === "month"}
+                          getDogCellLabel={getDogCellLabel}
+                          getDogTooltipLabel={getDogTooltipLabel}
+                          badgeAssignments={badgeAssignments}
+                          badgeByKey={badgeByKey}
+                          setMoveDialog={setMoveDialog}
+                        />
+                      ))}
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
 
-          {/* Legend */}
-          <div className="flex items-center gap-4 mt-2 justify-center flex-wrap">
+          {/* Mobile: full week/day grids (horizontal scroll) + month calendar + day detail (see mobileHScrollColTemplate). */}
+          <div className="md:hidden space-y-5">
+            {(calRange === "week" || calRange === "day") && (
+              <p className="text-[11px] text-muted-foreground px-0.5 leading-relaxed">
+                Swipe horizontally to see every day. Rooms are listed vertically; each row shows that room across all
+                days in range.
+              </p>
+            )}
+
+            {calRange === "month" && (
+              <div className="space-y-3">
+                <p className="text-[11px] text-muted-foreground px-0.5 leading-relaxed">
+                  Calendar shows total dogs vs capacity for the whole kennel each day. Tap a day for room-by-room
+                  detail. In each room row, tap the colored square for dog names, booking info, and moves (no names
+                  are shown inside the small squares).
+                </p>
+                <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-muted-foreground">
+                  {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((x) => (
+                    <div key={x}>{x}</div>
+                  ))}
+                </div>
+                <div className="grid grid-cols-7 gap-1.5">
+                  {monthMobileCells.map((dateKey, idx) =>
+                    dateKey ? (
+                      <button
+                        key={dateKey}
+                        type="button"
+                        onClick={() =>
+                          setMobileMonthDetailDate((d) => (d === dateKey ? null : dateKey))
+                        }
+                        className={cn(
+                          "min-h-[4.5rem] rounded-xl border-2 p-1.5 flex flex-col items-center justify-start gap-1 touch-manipulation transition-colors",
+                          mobileMonthDetailDate === dateKey
+                            ? "border-primary bg-primary/10 shadow-sm"
+                            : "border-border bg-card active:scale-[0.98]",
+                          dateKey === todayStr && "ring-2 ring-primary/20",
+                        )}
+                      >
+                        {(() => {
+                          const { occ, cap } = occupancyByDate.get(dateKey) ?? { occ: 0, cap: 0 };
+                          const full = cap > 0 && occ >= cap;
+                          const partial = occ > 0 && !full;
+                          return (
+                            <>
+                              <span className="text-lg font-bold tabular-nums leading-none">
+                                {parseInt(dateKey.slice(8, 10), 10)}
+                              </span>
+                              <span
+                                className={cn(
+                                  "text-[9px] font-semibold leading-tight text-center w-full rounded-md px-0.5 py-1",
+                                  occ === 0 && "bg-green-100 text-green-800",
+                                  partial && "bg-amber-100 text-amber-900",
+                                  full && "bg-red-100 text-red-800",
+                                )}
+                              >
+                                {occ === 0 ? "Open" : `${occ}/${cap} dogs`}
+                              </span>
+                            </>
+                          );
+                        })()}
+                      </button>
+                    ) : (
+                      <div key={`pad-m-${idx}`} className="min-h-[4.5rem]" />
+                    ),
+                  )}
+                </div>
+
+                {mobileMonthDetailDate && (
+                  <div className="rounded-xl border border-border bg-muted/20 p-3 space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-semibold">{formatDate(mobileMonthDetailDate)}</p>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 text-xs shrink-0"
+                        onClick={() => setMobileMonthDetailDate(null)}
+                      >
+                        Close
+                      </Button>
+                    </div>
+                    {calendarBuildings.map((bldg) => (
+                      <div key={`mdet-${bldg.building}`}>
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide mb-2">
+                          {bldg.building}
+                        </p>
+                        <div className="space-y-2">
+                          {bldg.rooms.map((room) => {
+                            const day = room.days.find((x) => x.date === mobileMonthDetailDate);
+                            if (!day) return null;
+                            return (
+                              <div
+                                key={room.roomId}
+                                className="flex flex-col gap-2 rounded-lg border bg-background p-2 sm:flex-row sm:items-stretch"
+                              >
+                                <div className="flex items-center gap-2 shrink-0 sm:w-[36%] sm:min-w-[7rem]">
+                                  <DoorOpen className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                                  <span className="text-xs font-semibold leading-tight">{room.roomName}</span>
+                                </div>
+                                <div className="min-w-0 flex-1 border-t pt-2 sm:border-t-0 sm:border-l sm:pl-3 sm:pt-0">
+                                  <OccupancyDayCell
+                                    roomId={room.roomId}
+                                    roomName={room.roomName}
+                                    day={day}
+                                    isToday={day.date === todayStr}
+                                    embedded
+                                    buttonCompact
+                                    monthOverview
+                                    getDogCellLabel={getDogCellLabel}
+                                    getDogTooltipLabel={getDogTooltipLabel}
+                                    badgeAssignments={badgeAssignments}
+                                    badgeByKey={badgeByKey}
+                                    setMoveDialog={setMoveDialog}
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {(calRange === "week" || calRange === "day") &&
+              calendarBuildings.map((bldg) => (
+                <div key={`mw-${bldg.building}`} className="space-y-2">
+                  <div className="flex items-center gap-2 px-0.5">
+                    <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wide">{bldg.building}</h3>
+                  </div>
+                  <div className="rounded-xl border border-border shadow-sm overflow-x-auto overscroll-x-contain touch-pan-x [-webkit-overflow-scrolling:touch]">
+                    <div className="inline-block min-w-max align-top">
+                      <div className="grid bg-muted/50" style={{ gridTemplateColumns: mobileHScrollColTemplate }}>
+                        <div className="p-2.5 text-xs font-semibold text-muted-foreground border-r border-border/60 sticky left-0 z-[2] bg-muted/95 backdrop-blur-sm">
+                          Room
+                        </div>
+                        {dates.map((date) => {
+                          const d = new Date(date + "T12:00:00");
+                          const isToday = date === todayStr;
+                          return (
+                            <div
+                              key={date}
+                              className={cn(
+                                "p-2 text-center border-r border-border/60 last:border-r-0 min-w-0",
+                                isToday ? "bg-primary/10" : "",
+                              )}
+                            >
+                              <p className="text-[10px] font-semibold text-muted-foreground">
+                                {d.toLocaleDateString("en-US", { weekday: "short" })}
+                              </p>
+                              <p className={cn("text-base font-bold tabular-nums", isToday ? "text-primary" : "")}>
+                                {d.getDate()}
+                              </p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {bldg.rooms.map((room) => (
+                        <div
+                          key={room.roomId}
+                          className="grid border-t border-border/60 bg-white"
+                          style={{ gridTemplateColumns: mobileHScrollColTemplate }}
+                        >
+                          <div className="p-2.5 border-r border-border/60 flex items-center gap-1.5 sticky left-0 z-[2] bg-white/95 backdrop-blur-sm">
+                            <DoorOpen className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                            <span className="text-xs font-semibold leading-tight">{room.roomName}</span>
+                          </div>
+                          {room.days.map((day) => (
+                            <OccupancyDayCell
+                              key={day.date}
+                              roomId={room.roomId}
+                              day={day}
+                              isToday={day.date === todayStr}
+                              buttonCompact
+                              getDogCellLabel={getDogCellLabel}
+                              getDogTooltipLabel={getDogTooltipLabel}
+                              badgeAssignments={badgeAssignments}
+                              badgeByKey={badgeByKey}
+                              setMoveDialog={setMoveDialog}
+                            />
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ))}
+          </div>
+
+          {/* Legend — all breakpoints */}
+          <div className="flex items-center gap-4 mt-2 justify-center flex-wrap px-1">
             <div className="flex items-center gap-1.5">
               <div className="w-4 h-4 rounded bg-green-50 border border-green-200 flex items-center justify-center">
                 <Check className="h-2.5 w-2.5 text-green-500" />
@@ -883,10 +1378,10 @@ function AvailabilityCalendar({
               <div className="w-4 h-4 rounded bg-red-100 border border-red-200 flex items-center justify-center">
                 <Dog className="h-2.5 w-2.5 text-red-500" />
               </div>
-              <span className="text-xs text-muted-foreground">Full (click to move)</span>
+              <span className="text-xs text-muted-foreground">Full (tap to move)</span>
             </div>
           </div>
-        </div>
+        </>
       )}
 
       {/* ===== MOVE DOG DIALOG ===== */}

@@ -1,4 +1,5 @@
 import { useAuth } from "@/_core/hooks/useAuth";
+import { accountGreetingFirstName } from "@/lib/accountDisplayName";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent } from "@/components/ui/card";
 import { useLocation } from "wouter";
@@ -28,7 +29,7 @@ export default function CustomerDashboard() {
       {/* Greeting */}
       <div>
         <h1 className="text-2xl font-bold text-foreground">
-          Hey {user?.name?.split(" ")[0] || "there"} 👋
+          Hey {accountGreetingFirstName(user)} 👋
         </h1>
         <p className="text-muted-foreground text-sm mt-0.5">Ready to book?</p>
       </div>

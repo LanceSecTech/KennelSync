@@ -42,24 +42,36 @@ export function FinancialsPanel() {
   return (
     <div className="space-y-4">
 
-      {/* Revenue Summary */}
+      {/* Revenue Summary — centered label + value for balanced cards (edit here for alignment tweaks) */}
       <div className="grid grid-cols-2 gap-3">
         <Card className="border-0 shadow-sm bg-white">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <TrendingUp className="h-4 w-4 text-success" />
-              <span className="text-xs text-muted-foreground">Total Revenue</span>
+          <CardContent className="p-4 sm:p-5 flex flex-col items-center justify-center text-center min-h-[7.5rem] gap-2">
+            <div className="flex flex-col items-center gap-1.5">
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-success/10">
+                <TrendingUp className="h-4 w-4 text-success" aria-hidden />
+              </span>
+              <span className="text-xs font-medium text-muted-foreground tracking-wide uppercase">
+                Total Revenue
+              </span>
             </div>
-            <p className="text-xl font-bold text-success">${(stats?.totalRevenue || 0).toFixed(2)}</p>
+            <p className="text-xl sm:text-2xl font-bold tabular-nums text-success leading-none">
+              ${(stats?.totalRevenue || 0).toFixed(2)}
+            </p>
           </CardContent>
         </Card>
         <Card className="border-0 shadow-sm bg-white">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <DollarSign className="h-4 w-4 text-primary" />
-              <span className="text-xs text-muted-foreground">This Month</span>
+          <CardContent className="p-4 sm:p-5 flex flex-col items-center justify-center text-center min-h-[7.5rem] gap-2">
+            <div className="flex flex-col items-center gap-1.5">
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-primary/10">
+                <DollarSign className="h-4 w-4 text-primary" aria-hidden />
+              </span>
+              <span className="text-xs font-medium text-muted-foreground tracking-wide uppercase">
+                This Month
+              </span>
             </div>
-            <p className="text-xl font-bold">${(stats?.monthRevenue || 0).toFixed(2)}</p>
+            <p className="text-xl sm:text-2xl font-bold tabular-nums text-foreground leading-none">
+              ${(stats?.monthRevenue || 0).toFixed(2)}
+            </p>
           </CardContent>
         </Card>
       </div>

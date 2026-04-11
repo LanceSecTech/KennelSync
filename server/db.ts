@@ -1,5 +1,6 @@
 import { supabase } from './_core/supabase';
 import { requiredVaccineIssueForStay } from './vaccinationCompliance';
+import { resolveDisplayNamesForUsers } from './lib/ownerDisplayName';
 
 function isEmptyUpdates(updates: Record<string, any>): boolean {
   return Object.keys(updates).length === 0;
@@ -627,10 +628,30 @@ export async function enrichBookingsMultiDogAndVaccines(bookings: any[], kennelI
   }
 }
 
+async function enrichBookingsCustomerDisplayNames(bookings: any[]) {
+  if (!bookings.length) return;
+  const ids = Array.from(new Set(bookings.map((b) => b.customerId).filter(Boolean))) as string[];
+  if (!ids.length) return;
+  const { data, error } = await supabase.from("users").select("id,email,name,full_name").in("id", ids);
+  if (error) {
+    console.warn("[db] enrichBookingsCustomerDisplayNames:", error.message);
+    return;
+  }
+  const resolved = await resolveDisplayNamesForUsers(supabase, data || []);
+  const emailById = new Map((data || []).map((u: any) => [String(u.id), u.email ?? null]));
+  for (const b of bookings) {
+    if (!b.customerId) continue;
+    const cid = String(b.customerId);
+    b.customerName = resolved.get(cid);
+    b.customerEmail = emailById.get(cid) ?? null;
+  }
+}
+
 async function mapAndEnrichKennelBookings(rows: any[], kennelId: number) {
   const roomMap = await getActiveRoomMapForBookingIds(rows.map((r: any) => r.id));
   const mapped = rows.map((row: any) => mapBookingRow(row, roomMap.get(row.id)));
   await enrichBookingsMultiDogAndVaccines(mapped, kennelId);
+  await enrichBookingsCustomerDisplayNames(mapped);
   return mapped;
 }
 
@@ -826,36 +847,95 @@ export async function createPayment(bookingId: number, customerId: string, kenne
 
 // ============ ALERTS ============
 
+export type ClientAlertRow = {
+  id: number;
+  type: string;
+  severity: string;
+  title: string;
+  message: string;
+  isRead: boolean;
+  createdAt: string;
+  dogId: number | null;
+  bookingId: number | null;
+  dogName: string | null;
+};
+
+function severityForAlertType(type: string): string {
+  const t = String(type || "").toLowerCase();
+  if (t.includes("expired") || t === "vaccination_missing" || t === "dog_info_incomplete") return "critical";
+  if (
+    t.includes("expiring") ||
+    t.includes("payment") ||
+    t.includes("pending") ||
+    t.includes("warning") ||
+    t.includes("missing")
+  )
+    return "warning";
+  return "info";
+}
+
+/** Map DB alert rows to API shape; batch-loads dog names when `dog_id` is set. */
+export async function mapRawAlertsToClientRows(raw: any[]): Promise<ClientAlertRow[]> {
+  if (!raw.length) return [];
+  const dogIds: number[] = [];
+  for (const r of raw) {
+    const x = r.dog_id;
+    if (x == null || x === "") continue;
+    const n = Number(x);
+    if (!Number.isFinite(n)) continue;
+    if (dogIds.indexOf(n) === -1) dogIds.push(n);
+  }
+  const names = new Map<number, string>();
+  if (dogIds.length) {
+    const { data: dogs, error: dogErr } = await supabase.from("dogs").select("id,name").in("id", dogIds);
+    if (!dogErr) {
+      for (const d of dogs || []) names.set(Number((d as any).id), String((d as any).name || "Dog"));
+    }
+  }
+  return raw.map((a: any) => {
+    const type = a.type || "general";
+    const rawTitle = a.title;
+    const fallbackTitle = String(type).replaceAll("_", " ");
+    const title = rawTitle && String(rawTitle).trim() ? String(rawTitle) : fallbackTitle;
+    const did = a.dog_id != null && a.dog_id !== "" ? Number(a.dog_id) : null;
+    const bid = a.booking_id != null && a.booking_id !== "" ? Number(a.booking_id) : null;
+    return {
+      id: a.id,
+      type,
+      severity: String(a.severity || "").trim() || severityForAlertType(type),
+      title,
+      message: a.message || "",
+      isRead: Boolean(a.is_read ?? a.is_resolved ?? false),
+      createdAt: a.created_at,
+      dogId: did != null && Number.isFinite(did) ? did : null,
+      bookingId: bid != null && Number.isFinite(bid) ? bid : null,
+      dogName: did != null && Number.isFinite(did) ? names.get(did) ?? null : null,
+    };
+  });
+}
+
 export async function getAlertsByKennelId(kennelId: number) {
   let { data, error } = await supabase
-    .from('alerts')
-    .select('*')
-    .eq('kennel_id', kennelId)
-    .eq('is_resolved', false)
-    .order('created_at', { ascending: false });
+    .from("alerts")
+    .select("*")
+    .eq("kennel_id", kennelId)
+    .eq("is_resolved", false)
+    .order("created_at", { ascending: false });
   if (error) {
     const msg = String(error.message || "").toLowerCase();
     // Backward compatibility if is_resolved doesn't exist in older schemas.
     if (msg.includes("is_resolved") && msg.includes("does not exist")) {
       const retry = await supabase
-        .from('alerts')
-        .select('*')
-        .eq('kennel_id', kennelId)
-        .order('created_at', { ascending: false });
+        .from("alerts")
+        .select("*")
+        .eq("kennel_id", kennelId)
+        .order("created_at", { ascending: false });
       data = retry.data;
       error = retry.error;
     }
   }
   if (error) throw error;
-  return (data || []).map((a: any) => ({
-    id: a.id,
-    type: a.type || "general",
-    severity: String(a.type || "").includes("expired") ? "critical" : String(a.type || "").includes("missing") ? "warning" : "info",
-    title: a.title || String(a.type || "Alert").replaceAll("_", " "),
-    message: a.message || "",
-    isRead: Boolean(a.is_read ?? a.is_resolved ?? false),
-    createdAt: a.created_at,
-  }));
+  return mapRawAlertsToClientRows(data || []);
 }
 
 export async function createAlert(kennelId: number, type: string, title: string, message: string, severity: string = 'info') {

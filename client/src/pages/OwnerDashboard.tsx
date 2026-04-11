@@ -1,12 +1,14 @@
+import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { useKennel } from "@/contexts/KennelContext";
+import { accountGreetingFirstName } from "@/lib/accountDisplayName";
 import { Card, CardContent } from "@/components/ui/card";
 import { useLocation } from "wouter";
-import { DollarSign, CalendarDays, Users, TrendingUp, Clock, AlertCircle, Building2, DoorOpen, ShieldAlert } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { DollarSign, CalendarDays, Users, TrendingUp, Clock, Building2, Bell } from "lucide-react";
 import { OwnerSubscriptionTrialBanner } from "@/components/OwnerSubscriptionPromo";
 
 export default function OwnerDashboard() {
+  const { user } = useAuth();
   const [, setLocation] = useLocation();
   const { activeKennelId: kennelId, activeKennelName } = useKennel();
   const { data: stats, isLoading } = trpc.stats.ownerDashboard.useQuery(
@@ -39,6 +41,9 @@ export default function OwnerDashboard() {
     <div className="p-4 space-y-4">
       <div>
         <h1 className="text-xl font-bold">Dashboard</h1>
+        {user ? (
+          <p className="text-sm font-medium text-foreground">Hey {accountGreetingFirstName(user)}</p>
+        ) : null}
         <p className="text-sm text-muted-foreground">{activeKennelName || "Your Kennel"}</p>
       </div>
 
@@ -72,26 +77,23 @@ export default function OwnerDashboard() {
       </div>
 
       {(vaccineIssues?.length ?? 0) > 0 && (
-        <Card
-          className="border-red-200 bg-red-50/60 cursor-pointer hover:shadow-md transition-shadow"
+        <button
+          type="button"
           onClick={() => setLocation("/alerts")}
+          className="w-full text-left rounded-xl border border-red-200/80 bg-red-50/70 shadow-sm px-4 py-3 flex items-center justify-between gap-3 hover:bg-red-50 hover:shadow-md transition-[box-shadow,background-color] touch-manipulation"
         >
-          <CardContent className="p-4 space-y-2">
-            <div className="flex items-center gap-2">
-              <ShieldAlert className="h-4 w-4 text-red-700" />
-              <p className="text-sm font-semibold text-red-900">Vaccine alerts</p>
-              <span className="ml-auto text-xs font-bold text-red-800 bg-red-100 px-2 py-0.5 rounded-full">
-                {vaccineIssues!.length}
-              </span>
-            </div>
-            <p className="text-xs text-red-800/90">
-              Dogs with required vaccines missing, expired, or expiring before check-in. Open Alerts for details and links.
-            </p>
-            <Button size="sm" variant="outline" className="h-8 text-xs border-red-300 text-red-900 w-full sm:w-auto">
-              View Alerts
-            </Button>
-          </CardContent>
-        </Card>
+          <span className="flex items-center gap-2 min-w-0">
+            <Bell className="h-4 w-4 text-red-700 shrink-0" aria-hidden />
+            <span className="text-sm font-semibold text-red-950 truncate">Alerts</span>
+          </span>
+          {/* Owner dashboard — alert count badge: tweak `h-8 min-w-8`, `bg-red-600`, `text-sm` here */}
+          <span
+            className="flex h-8 min-w-8 shrink-0 items-center justify-center rounded-full bg-red-600 px-2 text-sm font-bold tabular-nums text-white shadow-sm"
+            aria-label={`${vaccineIssues!.length} open alerts`}
+          >
+            {vaccineIssues!.length}
+          </span>
+        </button>
       )}
 
       {/* Occupancy */}
@@ -141,19 +143,6 @@ export default function OwnerDashboard() {
           </CardContent>
         </Card>
       </div>
-
-      {/* Room Management Link */}
-      <Card className="border-0 shadow-sm bg-white cursor-pointer hover:shadow-md transition-shadow" onClick={() => setLocation("/rooms")}>
-        <CardContent className="p-4 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-            <DoorOpen className="h-5 w-5 text-primary" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold">Room Management</p>
-            <p className="text-xs text-muted-foreground">Add, edit, and manage kennel rooms</p>
-          </div>
-        </CardContent>
-      </Card>
 
     </div>
   );

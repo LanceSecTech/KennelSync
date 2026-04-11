@@ -27,7 +27,8 @@ import {
 } from "./pages/MarketingSitePages";
 import Onboarding from "./pages/Onboarding";
 import { getOnboardingState } from "./lib/onboarding";
-import { useMemo, useState } from "react";
+import { trpc } from "./lib/trpc";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 // Customer pages
 import CustomerDashboard from "./pages/CustomerDashboard";
@@ -57,7 +58,7 @@ import RoomOverview from "./pages/RoomOverview";
 
 // Shared pages
 import Alerts from "./pages/Alerts";
-import Settings from "./pages/Settings";
+import { SETTINGS_ROUTE_FRAGMENT } from "./pages/SettingsSubpages";
 import NotFound from "./pages/NotFound";
 import { Redirect } from "wouter";
 import { useLocation } from "wouter";
@@ -73,7 +74,7 @@ function CustomerRoutes() {
       <Route path="/payments" component={Payments} />
       <Route path="/payment/success" component={PaymentSuccess} />
       <Route path="/payment/cancel" component={PaymentCancel} />
-      <Route path="/settings" component={Settings} />
+      {SETTINGS_ROUTE_FRAGMENT}
       <Route component={NotFound} />
     </Switch>
   );
@@ -91,7 +92,7 @@ function OwnerRoutes() {
       </Route>
       <Route path="/kennel" component={KennelProfile} />
       <Route path="/rooms" component={RoomManagement} />
-      <Route path="/settings" component={Settings} />
+      {SETTINGS_ROUTE_FRAGMENT}
       <Route component={NotFound} />
     </Switch>
   );
@@ -106,7 +107,7 @@ function EmployeeRoutes() {
       <Route path="/alerts" component={Alerts} />
       <Route path="/dogs" component={EmployeeDogs} />
       <Route path="/rooms" component={RoomOverview} />
-      <Route path="/settings" component={Settings} />
+      {SETTINGS_ROUTE_FRAGMENT}
       <Route component={NotFound} />
     </Switch>
   );
@@ -139,7 +140,7 @@ function OwnerOnboardingRoutes({
     <Switch>
       <Route path="/kennel" component={KennelProfile} />
       <Route path="/rooms" component={RoomManagement} />
-      <Route path="/settings" component={Settings} />
+      {SETTINGS_ROUTE_FRAGMENT}
       <Route path="/reports" component={OwnerReports} />
       <Route>
         <Onboarding user={user} onComplete={onOnboardingComplete} />
@@ -183,6 +184,14 @@ function PublicWebsiteRoutes() {
 
 function AppWithKennel() {
   const { user, loading } = useAuth();
+  const utils = trpc.useUtils();
+  const backfillOnboarding = trpc.auth.completeOnboarding.useMutation({
+    onSuccess: () => void utils.auth.me.invalidate(),
+  });
+  const backfillAttemptedRef = useRef(false);
+  useEffect(() => {
+    backfillAttemptedRef.current = false;
+  }, [user?.id]);
   const [location, setLocation] = useLocation();
   const [completedNow, setCompletedNow] = useState(false);
   const publicPaths = new Set([
@@ -205,10 +214,29 @@ function AppWithKennel() {
   ]);
   const isPublicPath = publicPaths.has(location);
 
+  useEffect(() => {
+    if (!user?.id) return;
+    if (user.onboardingCompleted) {
+      backfillAttemptedRef.current = false;
+      return;
+    }
+    const ls = getOnboardingState(user.id);
+    if (!ls?.completed || backfillAttemptedRef.current) return;
+    backfillAttemptedRef.current = true;
+    backfillOnboarding.mutate(undefined, {
+      onError: () => {
+        backfillAttemptedRef.current = false;
+      },
+    });
+  }, [user?.id, user?.onboardingCompleted, backfillOnboarding]);
+
   const needsOnboarding = useMemo(() => {
     if (!user) return false;
+    if (user.onboardingCompleted) return false;
+    if (completedNow) return false;
     const state = getOnboardingState(user.id);
-    return !(state?.completed || completedNow);
+    if (state?.completed) return false;
+    return true;
   }, [user, completedNow]);
 
   if (loading) {

@@ -161,6 +161,24 @@ export default defineConfig(({ mode }) => {
     console.info("[vite build] VITE_API_URL → client bundle:", viteApiUrl || "(empty — tRPC will use relative /api/trpc)");
   }
 
+  // Temporary dev diagnostics: URL baked into the client bundle for Supabase (matches Vite loadEnv merge).
+  if (mode === "development") {
+    const clientSupabaseUrl = fileEnv.VITE_SUPABASE_URL ?? "";
+    console.info(
+      "[dev-env][vite] Client bundle VITE_SUPABASE_URL (loadEnv: .env + .env.local*, etc.):",
+      clientSupabaseUrl || "(empty)",
+    );
+    try {
+      const host = clientSupabaseUrl ? new URL(clientSupabaseUrl).hostname : "";
+      const m = host.match(/^([a-z0-9-]+)\.supabase\.co$/i);
+      if (m) {
+        console.info("[dev-env][vite] Client Supabase project ref (from URL):", m[1]);
+      }
+    } catch {
+      /* ignore parse errors */
+    }
+  }
+
   return {
     plugins,
     define: {

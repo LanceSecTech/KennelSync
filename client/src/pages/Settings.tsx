@@ -42,6 +42,7 @@ import {
   vaxDocUrl,
 } from "@/lib/vaccinationUtils";
 import { OwnerSubscriptionSettingsCard } from "@/components/OwnerSubscriptionPromo";
+import { accountDisplayName } from "@/lib/accountDisplayName";
 
 export default function Settings() {
   const { user, logout } = useAuth();
@@ -157,7 +158,7 @@ export default function Settings() {
               <User className="h-6 w-6 text-primary" />
             </div>
             <div>
-              <p className="text-sm font-semibold">{user?.name || "User"}</p>
+              <p className="text-sm font-semibold">{accountDisplayName(user)}</p>
               <p className="text-xs text-muted-foreground">{user?.email || "No email"}</p>
               <p className="text-[10px] text-primary font-medium capitalize mt-0.5">{user?.role}</p>
             </div>
@@ -304,11 +305,15 @@ export default function Settings() {
       <div className="space-y-2">
         <Card className="border-0 shadow-sm bg-white">
           <CardContent className="p-0">
-            <button className="w-full p-4 flex items-center gap-3 text-left hover:bg-muted/50 transition-colors rounded-lg">
-              <Shield className="h-5 w-5 text-muted-foreground" />
-              <div>
-                <p className="text-sm font-medium">Account & Security</p>
-                <p className="text-xs text-muted-foreground">Manage your account settings</p>
+            <button
+              type="button"
+              onClick={() => setLocation("/settings/account")}
+              className="w-full p-4 flex items-center gap-3 text-left hover:bg-muted/50 transition-colors rounded-lg touch-manipulation"
+            >
+              <User className="h-5 w-5 text-muted-foreground shrink-0" />
+              <div className="min-w-0">
+                <p className="text-sm font-medium">Account</p>
+                <p className="text-xs text-muted-foreground">Profile, name, and contact details</p>
               </div>
             </button>
           </CardContent>
@@ -316,11 +321,31 @@ export default function Settings() {
 
         <Card className="border-0 shadow-sm bg-white">
           <CardContent className="p-0">
-            <button className="w-full p-4 flex items-center gap-3 text-left hover:bg-muted/50 transition-colors rounded-lg">
-              <Bell className="h-5 w-5 text-muted-foreground" />
-              <div>
+            <button
+              type="button"
+              onClick={() => setLocation("/settings/security")}
+              className="w-full p-4 flex items-center gap-3 text-left hover:bg-muted/50 transition-colors rounded-lg touch-manipulation"
+            >
+              <Shield className="h-5 w-5 text-muted-foreground shrink-0" />
+              <div className="min-w-0">
+                <p className="text-sm font-medium">Security</p>
+                <p className="text-xs text-muted-foreground">Password and sign-in</p>
+              </div>
+            </button>
+          </CardContent>
+        </Card>
+
+        <Card className="border-0 shadow-sm bg-white">
+          <CardContent className="p-0">
+            <button
+              type="button"
+              onClick={() => setLocation("/settings/notifications")}
+              className="w-full p-4 flex items-center gap-3 text-left hover:bg-muted/50 transition-colors rounded-lg touch-manipulation"
+            >
+              <Bell className="h-5 w-5 text-muted-foreground shrink-0" />
+              <div className="min-w-0">
                 <p className="text-sm font-medium">Notifications</p>
-                <p className="text-xs text-muted-foreground">Configure notification preferences</p>
+                <p className="text-xs text-muted-foreground">Alerts and preferences</p>
               </div>
             </button>
           </CardContent>
@@ -447,7 +472,12 @@ export default function Settings() {
       ) : (
         <>
           <div className="flex items-center gap-3">
-            <button onClick={() => setLocation("/")} className="p-1.5 rounded-lg hover:bg-muted">
+            <button
+              type="button"
+              onClick={() => setLocation("/app")}
+              className="p-1.5 rounded-lg hover:bg-muted touch-manipulation"
+              aria-label="Back to home"
+            >
               <ArrowLeft className="h-5 w-5" />
             </button>
             <h1 className="text-xl font-bold">Settings</h1>

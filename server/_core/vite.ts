@@ -4,7 +4,8 @@ import { type Server } from "http";
 import { nanoid } from "nanoid";
 import path from "path";
 import { createServer as createViteServer } from "vite";
-import viteConfig from "../../vite.config";
+
+const VITE_CONFIG_PATH = path.resolve(import.meta.dirname, "..", "..", "vite.config.ts");
 
 export async function setupVite(app: Express, server: Server) {
   const serverOptions = {
@@ -13,9 +14,11 @@ export async function setupVite(app: Express, server: Server) {
     allowedHosts: true as const,
   };
 
+  // Load vite.config.ts (root: client/, aliases, plugins). Spreading the default
+  // export does not work — it is a defineConfig callback, not a plain object; combined
+  // with configFile: false that left root at cwd and broke /src/main.tsx resolution.
   const vite = await createViteServer({
-    ...viteConfig,
-    configFile: false,
+    configFile: VITE_CONFIG_PATH,
     server: serverOptions,
     appType: "custom",
   });

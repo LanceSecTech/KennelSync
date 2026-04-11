@@ -20,9 +20,15 @@ CREATE TABLE IF NOT EXISTS users (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_users_role ON users(role);
-CREATE INDEX idx_users_kennel_id ON users(kennel_id);
+-- Display name (sync from auth user_metadata.name via trigger / app; see MIGRATION_R31_users_display_name.sql)
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS name TEXT;
+
+-- One-time onboarding gate (see MIGRATION_R32_users_onboarding_completed.sql)
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN NOT NULL DEFAULT FALSE;
+
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+CREATE INDEX IF NOT EXISTS idx_users_kennel_id ON users(kennel_id);
 
 -- ============================================
 -- 3. KENNELS TABLE
@@ -46,8 +52,8 @@ CREATE TABLE IF NOT EXISTS kennels (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_kennels_owner_id ON kennels(owner_id);
-CREATE INDEX idx_kennels_is_active ON kennels(is_active);
+CREATE INDEX IF NOT EXISTS idx_kennels_owner_id ON kennels(owner_id);
+CREATE INDEX IF NOT EXISTS idx_kennels_is_active ON kennels(is_active);
 
 -- ============================================
 -- 4. SERVICES TABLE
@@ -65,8 +71,8 @@ CREATE TABLE IF NOT EXISTS services (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_services_kennel_id ON services(kennel_id);
-CREATE INDEX idx_services_type ON services(type);
+CREATE INDEX IF NOT EXISTS idx_services_kennel_id ON services(kennel_id);
+CREATE INDEX IF NOT EXISTS idx_services_type ON services(type);
 
 -- ============================================
 -- 5. DOGS TABLE
@@ -95,9 +101,9 @@ CREATE TABLE IF NOT EXISTS dogs (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_dogs_owner_id ON dogs(owner_id);
-CREATE INDEX idx_dogs_kennel_id ON dogs(kennel_id);
-CREATE INDEX idx_dogs_name ON dogs(name);
+CREATE INDEX IF NOT EXISTS idx_dogs_owner_id ON dogs(owner_id);
+CREATE INDEX IF NOT EXISTS idx_dogs_kennel_id ON dogs(kennel_id);
+CREATE INDEX IF NOT EXISTS idx_dogs_name ON dogs(name);
 
 -- ============================================
 -- 6. VACCINATIONS TABLE
@@ -114,9 +120,9 @@ CREATE TABLE IF NOT EXISTS vaccinations (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_vaccinations_dog_id ON vaccinations(dog_id);
-CREATE INDEX idx_vaccinations_status ON vaccinations(status);
-CREATE INDEX idx_vaccinations_expiration_date ON vaccinations(expiration_date);
+CREATE INDEX IF NOT EXISTS idx_vaccinations_dog_id ON vaccinations(dog_id);
+CREATE INDEX IF NOT EXISTS idx_vaccinations_status ON vaccinations(status);
+CREATE INDEX IF NOT EXISTS idx_vaccinations_expiration_date ON vaccinations(expiration_date);
 
 -- ============================================
 -- 7. BOOKINGS TABLE
@@ -139,12 +145,12 @@ CREATE TABLE IF NOT EXISTS bookings (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_bookings_kennel_id ON bookings(kennel_id);
-CREATE INDEX idx_bookings_customer_id ON bookings(customer_id);
-CREATE INDEX idx_bookings_dog_id ON bookings(dog_id);
-CREATE INDEX idx_bookings_status ON bookings(status);
-CREATE INDEX idx_bookings_check_in_date ON bookings(check_in_date);
-CREATE INDEX idx_bookings_check_out_date ON bookings(check_out_date);
+CREATE INDEX IF NOT EXISTS idx_bookings_kennel_id ON bookings(kennel_id);
+CREATE INDEX IF NOT EXISTS idx_bookings_customer_id ON bookings(customer_id);
+CREATE INDEX IF NOT EXISTS idx_bookings_dog_id ON bookings(dog_id);
+CREATE INDEX IF NOT EXISTS idx_bookings_status ON bookings(status);
+CREATE INDEX IF NOT EXISTS idx_bookings_check_in_date ON bookings(check_in_date);
+CREATE INDEX IF NOT EXISTS idx_bookings_check_out_date ON bookings(check_out_date);
 
 -- ============================================
 -- 8. PAYMENTS TABLE
@@ -161,10 +167,10 @@ CREATE TABLE IF NOT EXISTS payments (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_payments_booking_id ON payments(booking_id);
-CREATE INDEX idx_payments_customer_id ON payments(customer_id);
-CREATE INDEX idx_payments_kennel_id ON payments(kennel_id);
-CREATE INDEX idx_payments_stripe_payment_id ON payments(stripe_payment_id);
+CREATE INDEX IF NOT EXISTS idx_payments_booking_id ON payments(booking_id);
+CREATE INDEX IF NOT EXISTS idx_payments_customer_id ON payments(customer_id);
+CREATE INDEX IF NOT EXISTS idx_payments_kennel_id ON payments(kennel_id);
+CREATE INDEX IF NOT EXISTS idx_payments_stripe_payment_id ON payments(stripe_payment_id);
 
 -- ============================================
 -- 9. ROOMS TABLE
@@ -181,8 +187,8 @@ CREATE TABLE IF NOT EXISTS rooms (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_rooms_kennel_id ON rooms(kennel_id);
-CREATE INDEX idx_rooms_is_available ON rooms(is_available);
+CREATE INDEX IF NOT EXISTS idx_rooms_kennel_id ON rooms(kennel_id);
+CREATE INDEX IF NOT EXISTS idx_rooms_is_available ON rooms(is_available);
 
 -- ============================================
 -- 10. ROOM ASSIGNMENTS TABLE
@@ -195,8 +201,8 @@ CREATE TABLE IF NOT EXISTS room_assignments (
   unassigned_at TIMESTAMP WITH TIME ZONE
 );
 
-CREATE INDEX idx_room_assignments_booking_id ON room_assignments(booking_id);
-CREATE INDEX idx_room_assignments_room_id ON room_assignments(room_id);
+CREATE INDEX IF NOT EXISTS idx_room_assignments_booking_id ON room_assignments(booking_id);
+CREATE INDEX IF NOT EXISTS idx_room_assignments_room_id ON room_assignments(room_id);
 
 -- ============================================
 -- 10b. ROOM ASSIGNMENT DAYS (per-calendar-day overrides)
@@ -211,9 +217,9 @@ CREATE TABLE IF NOT EXISTS room_assignment_days (
   CONSTRAINT room_assignment_days_booking_date_unique UNIQUE (booking_id, stay_date)
 );
 
-CREATE INDEX idx_room_assignment_days_booking_id ON room_assignment_days(booking_id);
-CREATE INDEX idx_room_assignment_days_stay_date ON room_assignment_days(stay_date);
-CREATE INDEX idx_room_assignment_days_room_id ON room_assignment_days(room_id);
+CREATE INDEX IF NOT EXISTS idx_room_assignment_days_booking_id ON room_assignment_days(booking_id);
+CREATE INDEX IF NOT EXISTS idx_room_assignment_days_stay_date ON room_assignment_days(stay_date);
+CREATE INDEX IF NOT EXISTS idx_room_assignment_days_room_id ON room_assignment_days(room_id);
 
 -- ============================================
 -- 11. CHECKOUT ADD-ONS TABLE
@@ -228,8 +234,8 @@ CREATE TABLE IF NOT EXISTS checkout_add_ons (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_checkout_add_ons_kennel_id ON checkout_add_ons(kennel_id);
-CREATE INDEX idx_checkout_add_ons_is_active ON checkout_add_ons(is_active);
+CREATE INDEX IF NOT EXISTS idx_checkout_add_ons_kennel_id ON checkout_add_ons(kennel_id);
+CREATE INDEX IF NOT EXISTS idx_checkout_add_ons_is_active ON checkout_add_ons(is_active);
 
 -- ============================================
 -- 12. BOOKING ADD-ONS TABLE
@@ -245,9 +251,9 @@ CREATE TABLE IF NOT EXISTS booking_add_ons (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_booking_add_ons_booking_id ON booking_add_ons(booking_id);
-CREATE INDEX idx_booking_add_ons_add_on_id ON booking_add_ons(add_on_id);
-CREATE INDEX idx_booking_add_ons_dog_id ON booking_add_ons(dog_id);
+CREATE INDEX IF NOT EXISTS idx_booking_add_ons_booking_id ON booking_add_ons(booking_id);
+CREATE INDEX IF NOT EXISTS idx_booking_add_ons_add_on_id ON booking_add_ons(add_on_id);
+CREATE INDEX IF NOT EXISTS idx_booking_add_ons_dog_id ON booking_add_ons(dog_id);
 
 -- ============================================
 -- 13. BUSINESS HOURS TABLE
@@ -264,7 +270,7 @@ CREATE TABLE IF NOT EXISTS business_hours (
   UNIQUE(kennel_id, day_of_week)
 );
 
-CREATE INDEX idx_business_hours_kennel_id ON business_hours(kennel_id);
+CREATE INDEX IF NOT EXISTS idx_business_hours_kennel_id ON business_hours(kennel_id);
 
 -- ============================================
 -- 14. KENNEL FAVORITES TABLE
@@ -277,8 +283,8 @@ CREATE TABLE IF NOT EXISTS kennel_favorites (
   UNIQUE(user_id, kennel_id)
 );
 
-CREATE INDEX idx_kennel_favorites_user_id ON kennel_favorites(user_id);
-CREATE INDEX idx_kennel_favorites_kennel_id ON kennel_favorites(kennel_id);
+CREATE INDEX IF NOT EXISTS idx_kennel_favorites_user_id ON kennel_favorites(user_id);
+CREATE INDEX IF NOT EXISTS idx_kennel_favorites_kennel_id ON kennel_favorites(kennel_id);
 
 -- ============================================
 -- 14b. KENNEL REQUIRED VACCINES TABLE
@@ -291,9 +297,12 @@ CREATE TABLE IF NOT EXISTS kennel_required_vaccines (
   UNIQUE(kennel_id, vaccine_name)
 );
 
-CREATE INDEX idx_kennel_required_vaccines_kennel_id ON kennel_required_vaccines(kennel_id);
+CREATE INDEX IF NOT EXISTS idx_kennel_required_vaccines_kennel_id ON kennel_required_vaccines(kennel_id);
 
 ALTER TABLE kennel_required_vaccines ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Owners can manage required vaccines" ON kennel_required_vaccines;
+DROP POLICY IF EXISTS "Anyone can view required vaccines" ON kennel_required_vaccines;
 
 CREATE POLICY "Owners can manage required vaccines"
   ON kennel_required_vaccines FOR ALL
@@ -359,6 +368,16 @@ CREATE TABLE IF NOT EXISTS booking_discounts (
 
 ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT;
 
+-- Owner SaaS subscription + trial on kennels (required for onboarding / ownerBilling.startTrial)
+-- Idempotent; same as MIGRATION_R30_kennel_stripe_subscription.sql
+ALTER TABLE kennels ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT;
+ALTER TABLE kennels ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT;
+ALTER TABLE kennels ADD COLUMN IF NOT EXISTS subscription_status TEXT;
+ALTER TABLE kennels ADD COLUMN IF NOT EXISTS subscription_tier TEXT;
+ALTER TABLE kennels ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMPTZ;
+CREATE INDEX IF NOT EXISTS idx_kennels_stripe_subscription_id ON kennels(stripe_subscription_id);
+CREATE INDEX IF NOT EXISTS idx_kennels_stripe_customer_id ON kennels(stripe_customer_id);
+
 -- ============================================
 -- 15. CUSTOMER-KENNEL ASSOCIATIONS TABLE
 -- ============================================
@@ -370,8 +389,8 @@ CREATE TABLE IF NOT EXISTS customer_kennel_associations (
   UNIQUE(customer_id, kennel_id)
 );
 
-CREATE INDEX idx_customer_kennel_associations_customer_id ON customer_kennel_associations(customer_id);
-CREATE INDEX idx_customer_kennel_associations_kennel_id ON customer_kennel_associations(kennel_id);
+CREATE INDEX IF NOT EXISTS idx_customer_kennel_associations_customer_id ON customer_kennel_associations(customer_id);
+CREATE INDEX IF NOT EXISTS idx_customer_kennel_associations_kennel_id ON customer_kennel_associations(kennel_id);
 
 -- ============================================
 -- 16. ALERTS TABLE
@@ -388,9 +407,9 @@ CREATE TABLE IF NOT EXISTS alerts (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_alerts_kennel_id ON alerts(kennel_id);
-CREATE INDEX idx_alerts_type ON alerts(type);
-CREATE INDEX idx_alerts_is_resolved ON alerts(is_resolved);
+CREATE INDEX IF NOT EXISTS idx_alerts_kennel_id ON alerts(kennel_id);
+CREATE INDEX IF NOT EXISTS idx_alerts_type ON alerts(type);
+CREATE INDEX IF NOT EXISTS idx_alerts_is_resolved ON alerts(is_resolved);
 
 -- ============================================
 -- 17. AUDIT LOG TABLE
@@ -405,9 +424,9 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_audit_logs_user_id ON audit_logs(user_id);
-CREATE INDEX idx_audit_logs_table_name ON audit_logs(table_name);
-CREATE INDEX idx_audit_logs_created_at ON audit_logs(created_at);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON audit_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_table_name ON audit_logs(table_name);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at);
 
 -- ============================================
 -- ROW LEVEL SECURITY (RLS) POLICIES
@@ -435,6 +454,75 @@ ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
 -- ============================================
 -- USERS RLS POLICIES
 -- ============================================
+-- Idempotent: allow re-running this script without 42710 policy errors
+DROP POLICY IF EXISTS "Users can view their own profile" ON users;
+DROP POLICY IF EXISTS "Users can update their own profile" ON users;
+DROP POLICY IF EXISTS "Owners can view their own kennels" ON kennels;
+DROP POLICY IF EXISTS "Employees can view their kennel" ON kennels;
+DROP POLICY IF EXISTS "Customers can view kennels they have bookings with" ON kennels;
+DROP POLICY IF EXISTS "Public can view active kennels" ON kennels;
+DROP POLICY IF EXISTS "Owners can update their own kennels" ON kennels;
+DROP POLICY IF EXISTS "Owners can create kennels" ON kennels;
+DROP POLICY IF EXISTS "Anyone can view active services" ON services;
+DROP POLICY IF EXISTS "Owners can view all services of their kennel" ON services;
+DROP POLICY IF EXISTS "Owners can manage services of their kennel" ON services;
+DROP POLICY IF EXISTS "Owners can update services of their kennel" ON services;
+DROP POLICY IF EXISTS "Owners can delete services of their kennel" ON services;
+DROP POLICY IF EXISTS "Customers can view their own dogs" ON dogs;
+DROP POLICY IF EXISTS "Employees can view dogs in their kennel" ON dogs;
+DROP POLICY IF EXISTS "Customers can create dogs" ON dogs;
+DROP POLICY IF EXISTS "Customers can update their own dogs" ON dogs;
+DROP POLICY IF EXISTS "Customers can view their dog's vaccinations" ON vaccinations;
+DROP POLICY IF EXISTS "Employees can view vaccinations of dogs in their kennel" ON vaccinations;
+DROP POLICY IF EXISTS "Customers can manage their dog's vaccinations" ON vaccinations;
+DROP POLICY IF EXISTS "Customers can update their dog's vaccinations" ON vaccinations;
+DROP POLICY IF EXISTS "Customers can view their own bookings" ON bookings;
+DROP POLICY IF EXISTS "Owners can view bookings for their kennel" ON bookings;
+DROP POLICY IF EXISTS "Employees can view bookings for their kennel" ON bookings;
+DROP POLICY IF EXISTS "Customers can create bookings" ON bookings;
+DROP POLICY IF EXISTS "Customers can update their own bookings" ON bookings;
+DROP POLICY IF EXISTS "Owners can update bookings for their kennel" ON bookings;
+DROP POLICY IF EXISTS "Employees can update bookings for their kennel" ON bookings;
+DROP POLICY IF EXISTS "Customers can view their own payments" ON payments;
+DROP POLICY IF EXISTS "Owners can view payments for their kennel" ON payments;
+DROP POLICY IF EXISTS "Customers can create payments" ON payments;
+DROP POLICY IF EXISTS "Owners can update payments for their kennel" ON payments;
+DROP POLICY IF EXISTS "Owners can view rooms of their kennel" ON rooms;
+DROP POLICY IF EXISTS "Employees can view rooms of their kennel" ON rooms;
+DROP POLICY IF EXISTS "Owners can manage rooms of their kennel" ON rooms;
+DROP POLICY IF EXISTS "Owners can update rooms of their kennel" ON rooms;
+DROP POLICY IF EXISTS "Owners can view room assignments for their kennel" ON room_assignments;
+DROP POLICY IF EXISTS "Employees can view room assignments for their kennel" ON room_assignments;
+DROP POLICY IF EXISTS "Owners can manage room assignments for their kennel" ON room_assignments;
+DROP POLICY IF EXISTS "Owners can view room_assignment_days for their kennel" ON room_assignment_days;
+DROP POLICY IF EXISTS "Employees can view room_assignment_days for their kennel" ON room_assignment_days;
+DROP POLICY IF EXISTS "Owners can manage room_assignment_days for their kennel" ON room_assignment_days;
+DROP POLICY IF EXISTS "Anyone can view active add-ons" ON checkout_add_ons;
+DROP POLICY IF EXISTS "Owners can view all add-ons of their kennel" ON checkout_add_ons;
+DROP POLICY IF EXISTS "Owners can manage add-ons of their kennel" ON checkout_add_ons;
+DROP POLICY IF EXISTS "Owners can update add-ons of their kennel" ON checkout_add_ons;
+DROP POLICY IF EXISTS "Owners can delete add-ons of their kennel" ON checkout_add_ons;
+DROP POLICY IF EXISTS "Customers can view add-ons of their bookings" ON booking_add_ons;
+DROP POLICY IF EXISTS "Owners can view add-ons of bookings for their kennel" ON booking_add_ons;
+DROP POLICY IF EXISTS "Employees can view add-ons of bookings for their kennel" ON booking_add_ons;
+DROP POLICY IF EXISTS "Customers can create add-ons for their bookings" ON booking_add_ons;
+DROP POLICY IF EXISTS "Employees can manage add-ons for bookings in their kennel" ON booking_add_ons;
+DROP POLICY IF EXISTS "Employees can update add-ons for bookings in their kennel" ON booking_add_ons;
+DROP POLICY IF EXISTS "Anyone can view business hours" ON business_hours;
+DROP POLICY IF EXISTS "Owners can manage business hours for their kennel" ON business_hours;
+DROP POLICY IF EXISTS "Owners can update business hours for their kennel" ON business_hours;
+DROP POLICY IF EXISTS "Users can view their own favorites" ON kennel_favorites;
+DROP POLICY IF EXISTS "Users can add favorites" ON kennel_favorites;
+DROP POLICY IF EXISTS "Users can remove their own favorites" ON kennel_favorites;
+DROP POLICY IF EXISTS "Customers can view their kennel associations" ON customer_kennel_associations;
+DROP POLICY IF EXISTS "Owners can view customer associations for their kennel" ON customer_kennel_associations;
+DROP POLICY IF EXISTS "System can create customer associations" ON customer_kennel_associations;
+DROP POLICY IF EXISTS "Owners can view alerts for their kennel" ON alerts;
+DROP POLICY IF EXISTS "Employees can view alerts for their kennel" ON alerts;
+DROP POLICY IF EXISTS "System can create alerts" ON alerts;
+DROP POLICY IF EXISTS "Users can view their own audit logs" ON audit_logs;
+DROP POLICY IF EXISTS "System can create audit logs" ON audit_logs;
+
 CREATE POLICY "Users can view their own profile"
   ON users FOR SELECT
   USING (auth.uid() = id);

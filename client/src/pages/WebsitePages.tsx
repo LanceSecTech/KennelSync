@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode, type FormEvent } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { accountDisplayName } from "@/lib/accountDisplayName";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -249,7 +250,8 @@ export function WebsiteAuth() {
         {!loading && user && !forceShowForm ? (
           <div className="space-y-3">
             <p className="text-sm text-slate-700">
-              You are already signed in as <span className="font-medium">{user.email || "your account"}</span>.
+              You are already signed in as{" "}
+              <span className="font-medium">{accountDisplayName(user)}</span>.
             </p>
             <div className="flex gap-2">
               <Button

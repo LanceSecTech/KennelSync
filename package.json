@@ -10,7 +10,9 @@
     "check": "tsc --noEmit",
     "format": "prettier --write .",
     "test": "vitest run",
-    "db:push": "drizzle-kit generate && drizzle-kit migrate"
+    "db:push": "drizzle-kit generate && drizzle-kit migrate",
+    "seed:demo": "cross-env DEMO_SEED_OK=yes tsx scripts/seed-demo.ts",
+    "seed:demo:reset": "cross-env DEMO_RESET_OK=yes tsx scripts/reset-demo.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.693.0",

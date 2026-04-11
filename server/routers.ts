@@ -6,6 +6,13 @@ import { storagePut, storageDelete } from "./storage";
 import { supabase } from "./_core/supabase";
 import type { User } from "./_core/context";
 import {
+  fetchAuthMetadataNames,
+  isUsableDisplayName,
+  resolveDisplayNamesForUsers,
+  resolveOwnerDisplayName,
+  trimStr,
+} from "./lib/ownerDisplayName";
+import {
   isOwnerSubscriptionEnforced,
   kennelRowHasOwnerAppAccess,
   kennelShowTrialUpgradeBanner,
@@ -60,6 +67,17 @@ async function assertOwnerOwnsKennelId(user: User, kennelId: number) {
     throw new TRPCError({ code: "FORBIDDEN", message: "Owner access required" });
   }
   await assertOwnerOwnsKennel(user.id, kennelId);
+}
+
+/** PostgREST / Supabase schema-cache errors when a column is missing from the live DB */
+function isMissingKennelColumnError(e: unknown, columnSnake: string): boolean {
+  const m = String((e as { message?: string })?.message ?? e ?? "").toLowerCase();
+  const col = columnSnake.toLowerCase();
+  return (
+    m.includes("schema cache") ||
+    (m.includes(col) && (m.includes("column") || m.includes("could not find"))) ||
+    (m.includes("does not exist") && m.includes(col))
+  );
 }
 
 async function assertStaffMayChangeBookingStatus(user: User, booking: { kennelId: number }) {
@@ -265,6 +283,27 @@ export const appRouter = router({
           throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: msg || "Failed to update profile" });
         }
       }),
+    /** Idempotent: marks the signed-in user as having finished onboarding (all roles). */
+    completeOnboarding: protectedProcedure.mutation(async ({ ctx }) => {
+      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+      try {
+        await db.updateUser(ctx.user.id, { onboarding_completed: true });
+      } catch (err: any) {
+        const msg = String(err?.message || "").toLowerCase();
+        if (msg.includes("onboarding_completed") && msg.includes("does not exist")) {
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message:
+              "Database is missing column users.onboarding_completed. Run MIGRATION_R32_users_onboarding_completed.sql in Supabase.",
+          });
+        }
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: String(err?.message || "Failed to save onboarding completion"),
+        });
+      }
+      return { success: true as const };
+    }),
     logout: publicProcedure.mutation(async ({ ctx }) => {
       await supabase.auth.signOut();
       return { success: true } as const;
@@ -2126,9 +2165,10 @@ export const appRouter = router({
       const todayOccupancy = todayBookings.length;
       const totalCapacity = rooms.reduce((sum: number, r: any) => sum + (r.capacity || 1), 0) || 20;
 
-      const monthPayments = (payments as any[]).filter((p: any) => p.created_at >= monthStart && p.status === 'completed');
+      const paidStatuses = (s: string) => ["completed", "succeeded", "paid"].includes(String(s || "").toLowerCase());
+      const monthPayments = (payments as any[]).filter((p: any) => p.created_at >= monthStart && paidStatuses(p.status));
       const monthRevenue = monthPayments.reduce((sum: number, p: any) => sum + parseFloat(String(p.amount || 0)), 0);
-      const totalRevenue = (payments as any[]).filter((p: any) => p.status === 'completed').reduce((sum: number, p: any) => sum + parseFloat(String(p.amount || 0)), 0);
+      const totalRevenue = (payments as any[]).filter((p: any) => paidStatuses(p.status)).reduce((sum: number, p: any) => sum + parseFloat(String(p.amount || 0)), 0);
 
       const pendingBookings = bookings.filter((b: any) => b.status === 'pending').length;
       const upcomingBookings = bookings.filter((b: any) => b.checkInDate > today && b.status !== 'cancelled').length;
@@ -2440,6 +2480,14 @@ export const appRouter = router({
         }
         const userById = new Map<string, any>((usersRows || []).map((u: any) => [u.id, u]));
 
+        const ownerIdsNeedingAuthName = ownerIds.filter((oid) => {
+          const u = userById.get(oid) as Record<string, unknown> | undefined;
+          const em = trimStr(u?.email);
+          const n = trimStr(u?.name ?? u?.full_name);
+          return !isUsableDisplayName(n, em);
+        });
+        const authMetaNameById = await fetchAuthMetadataNames(supabase, ownerIdsNeedingAuthName);
+
         const dogIds = dogRows.map((d: any) => d.id);
         const { data: vaxRows, error: vaxErr } = await supabase
           .from("vaccinations")
@@ -2508,7 +2556,11 @@ export const appRouter = router({
           const ownerId = d.ownerId || ownerBooking?.customerId || null;
           const owner = ownerId ? userById.get(ownerId) : null;
           const ownerPhone = owner?.phone ?? owner?.phone_number ?? null;
-          const ownerDisplayName = owner?.name ? String(owner.name) : owner?.email ? String(owner.email).split("@")[0] : "Owner";
+          const ownerDisplayName = resolveOwnerDisplayName(
+            owner,
+            ownerId ? authMetaNameById.get(ownerId) ?? null : null,
+            owner?.email,
+          );
           const vr = vaxByDog.get(d.id) || [];
           const hasExpired = vr.some((x) => x.status === "expired" || (x.expiration_date && x.expiration_date < todayStr));
           const hasSoon = vr.some((x) => x.expiration_date && x.expiration_date >= todayStr);
@@ -2561,7 +2613,7 @@ export const appRouter = router({
           const u = userById.get(oid);
           const ownerPets = petsByOwner.get(oid) || [];
           const ownerBookings = bookingRows.filter((b: any) => b.customerId === oid);
-          const displayName = u?.name ? String(u.name) : u?.email ? String(u.email).split("@")[0] : "Owner";
+          const displayName = resolveOwnerDisplayName(u, authMetaNameById.get(oid) ?? null, u?.email);
           const phone = u?.phone ?? u?.phone_number ?? null;
           return {
             ownerId: oid,
@@ -2707,15 +2759,7 @@ export const appRouter = router({
         if (msg.includes("user_id") && msg.includes("does not exist")) return [];
         return [];
       }
-      return (data || []).map((a: any) => ({
-        id: a.id,
-        type: a.type,
-        severity: a.severity || "info",
-        title: a.title || String(a.type || "Alert").replaceAll("_", " "),
-        message: a.message,
-        isRead: Boolean(a.is_read ?? a.is_resolved ?? false),
-        createdAt: a.created_at,
-      }));
+      return await db.mapRawAlertsToClientRows(data || []);
     }),
     markRead: protectedProcedure.input(z.object({ id: z.number() })).mutation(async ({ ctx, input }) => {
       if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
@@ -2762,13 +2806,27 @@ export const appRouter = router({
       if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
       await assertEmployeeOrOwnerKennel(ctx.user, input.kennelId);
       const bookings = await db.getBookingsByKennelId(input.kennelId);
-      const issues: { bookingId: number; dogName: string; details: string; checkInDate: string; bookingStatus: string }[] = [];
+      const issues: {
+        bookingId: number;
+        dogId: number | null;
+        dogName: string;
+        details: string;
+        checkInDate: string;
+        bookingStatus: string;
+      }[] = [];
       for (const b of bookings) {
         if (!["pending", "confirmed", "checked_in"].includes(b.status)) continue;
         const rows = (b as any).vaccineIssueRows as Array<{ detail: string }> | undefined;
         if (!rows?.length) continue;
+        const primaryDogId =
+          (b as any).dogIdsOnBooking?.[0] != null
+            ? Number((b as any).dogIdsOnBooking[0])
+            : b.dogId != null
+              ? Number(b.dogId)
+              : null;
         issues.push({
           bookingId: b.id,
+          dogId: Number.isFinite(primaryDogId as number) ? (primaryDogId as number) : null,
           dogName: (b as any).dogNames?.join(", ") || b.dogName || "Dog",
           details: rows.map((r) => r.detail).join(" · "),
           checkInDate: String(b.checkInDate || ""),
@@ -2808,14 +2866,15 @@ export const appRouter = router({
         ...bookings.map((b: any) => b.customerId).filter(Boolean),
         ...scopeDogs.map((d: any) => d.ownerId).filter(Boolean),
       ]));
-      let usersById = new Map<string, { email?: string | null }>();
+      let customerDisplayById = new Map<string, string>();
       if (customerIds.length > 0) {
         const { data: usersRows, error: usersError } = await supabase
           .from("users")
-          .select("id,email")
+          .select("id,email,name,full_name")
           .in("id", customerIds as string[]);
         if (usersError) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: usersError.message });
-        usersById = new Map((usersRows || []).map((u: any) => [u.id, u]));
+        const rows = usersRows || [];
+        customerDisplayById = await resolveDisplayNamesForUsers(supabase, rows);
       }
       const out: {
         bookingId: number;
@@ -2834,8 +2893,7 @@ export const appRouter = router({
           | Array<{ dogId: number; dogName: string; vaccineLabel: string; kind: string; detail: string }>
           | undefined;
         if (!vRows?.length) continue;
-        const u = usersById.get(b.customerId);
-        const customerName = (u as any)?.email || "Customer";
+        const customerName = customerDisplayById.get(String(b.customerId)) || "Customer";
         for (const issue of vRows) {
           out.push({
             bookingId: b.id,
@@ -2878,8 +2936,7 @@ export const appRouter = router({
         const did = Number(d.id);
         if (!did) continue;
         const rows = vaxByDog.get(did) || [];
-        const owner = d.ownerId ? usersById.get(d.ownerId) : null;
-        const customerName = (owner as any)?.email || "Customer";
+        const customerName = d.ownerId ? customerDisplayById.get(String(d.ownerId)) || "Customer" : "Customer";
         const booking = bookingByDog.get(did);
         const bookingId = Number(booking?.id || 0);
         const checkInDate = String(booking?.checkInDate || today);
@@ -2939,8 +2996,7 @@ export const appRouter = router({
         for (const d of scopeDogs as any[]) {
           const did = Number(d.id);
           const rows = vaxByDog.get(did) || [];
-          const owner = d.ownerId ? usersById.get(d.ownerId) : null;
-          const customerName = (owner as any)?.email || "Customer";
+          const customerName = d.ownerId ? customerDisplayById.get(String(d.ownerId)) || "Customer" : "Customer";
           const booking = bookingByDog.get(did);
           const bookingId = Number(booking?.id || 0);
           const checkInDate = String(booking?.checkInDate || today);
@@ -2982,19 +3038,10 @@ export const appRouter = router({
       const unassigned = bookings.filter((b: any) => b.status === "checked_in" && !b.roomId);
       if (unassigned.length === 0) return [];
 
-      const customerIds = Array.from(new Set(unassigned.map((b: any) => b.customerId).filter(Boolean)));
-      const { data: usersRows, error: usersError } = await supabase
-        .from("users")
-        .select("id,email")
-        .in("id", customerIds as string[]);
-      if (usersError) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: usersError.message });
-      const usersById = new Map((usersRows || []).map((u: any) => [u.id, u]));
-
       return unassigned.map((b: any) => {
-        const userRow = usersById.get(b.customerId);
-        const customerName = null;
-        const customerEmail = userRow?.email || null;
-        const customerLabel = customerName || customerEmail || "Customer";
+        const customerEmail = b.customerEmail ?? null;
+        const customerName = b.customerName || customerEmail || "Customer";
+        const customerLabel = customerName;
         return {
           bookingId: b.id,
           dogId: b.dogId,
@@ -3240,25 +3287,35 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         await assertOwnerOwnsKennelId(ctx.user, input.kennelId);
         console.log(`[ownerBilling.checkout] userId=${ctx.user.id} kennelId=${input.kennelId}`);
-        try {
-          const { createOwnerSubscriptionCheckoutSession } = await import("./stripeOwnerSubscription");
-          const url = await createOwnerSubscriptionCheckoutSession({
-            kennelId: input.kennelId,
-            userId: ctx.user.id,
-            userEmail: ctx.user.email,
-            origin: input.origin,
-          });
-          if (!url) {
-            throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Could not create checkout session" });
-          }
-          return { url };
-        } catch (e: unknown) {
-          const msg = e instanceof Error ? e.message : String(e);
+        const { stripe } = await import("./stripe");
+        const { createOwnerSubscriptionCheckoutSession, getOwnerSubscriptionPriceId } = await import("./stripeOwnerSubscription");
+        if (!stripe) {
           throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: msg || "Could not start checkout",
+            code: "PRECONDITION_FAILED",
+            message:
+              "Stripe is not configured (STRIPE_SECRET_KEY). For local/demo, set OWNER_SUBSCRIPTION_ENFORCE=off or leave STRIPE_SECRET_KEY unset so onboarding does not require checkout. Otherwise configure Stripe and STRIPE_OWNER_SUBSCRIPTION_PRICE_ID.",
           });
         }
+        if (!getOwnerSubscriptionPriceId()) {
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message:
+              "Set STRIPE_OWNER_SUBSCRIPTION_PRICE_ID on the server to enable subscription checkout, or use “Skip for now” to start a trial (requires kennels.trial_ends_at — run MIGRATION_R30_kennel_stripe_subscription.sql on your Supabase project if missing).",
+          });
+        }
+        const url = await createOwnerSubscriptionCheckoutSession({
+          kennelId: input.kennelId,
+          userId: ctx.user.id,
+          userEmail: ctx.user.email,
+          origin: input.origin,
+        });
+        if (!url) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Could not create Stripe checkout session (customer or session creation failed).",
+          });
+        }
+        return { url };
       }),
     startTrial: ownerProcedure.input(z.object({ kennelId: z.number() })).mutation(async ({ ctx, input }) => {
       await assertOwnerOwnsKennelId(ctx.user, input.kennelId);
@@ -3280,7 +3337,24 @@ export const appRouter = router({
       const trialEnd = new Date();
       trialEnd.setUTCDate(trialEnd.getUTCDate() + 7);
       const iso = trialEnd.toISOString();
-      await db.updateKennel(input.kennelId, { trial_ends_at: iso });
+      try {
+        await db.updateKennel(input.kennelId, { trial_ends_at: iso });
+      } catch (e: unknown) {
+        if (isMissingKennelColumnError(e, "trial_ends_at")) {
+          try {
+            await db.updateKennel(input.kennelId, { subscription_status: "trialing" });
+          } catch (e2: unknown) {
+            throw new TRPCError({
+              code: "PRECONDITION_FAILED",
+              message:
+                "Database is missing kennels.trial_ends_at (and subscription update failed). Run MIGRATION_R30_kennel_stripe_subscription.sql or the kennels ALTER block in SUPABASE_SCHEMA.sql in the Supabase SQL Editor, then reload the API schema cache.",
+            });
+          }
+          return { success: true as const, trialEndsAt: iso };
+        }
+        const msg = e instanceof Error ? e.message : String(e);
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: msg || "Could not start trial" });
+      }
       return { success: true as const, trialEndsAt: iso };
     }),
   }),

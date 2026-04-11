@@ -39,6 +39,25 @@ import { DogBadgesInline } from "@/components/DogBadgesInline";
 type FilterType = "all" | "pending" | "confirmed" | "cancelled";
 type ScheduleMode = "list" | "day" | "week" | "month";
 
+/**
+ * Bookings toolbar: desktop uses pill buttons; mobile uses Selects (see JSX).
+ * Adjust labels or add modes here — wire new schedule modes in state + render branches below.
+ */
+const VIEW_MODE_OPTIONS: { mode: ScheduleMode; label: string; icon: typeof LayoutList }[] = [
+  { mode: "list", label: "List", icon: LayoutList },
+  { mode: "day", label: "Day", icon: Calendar },
+  { mode: "week", label: "Week", icon: CalendarRange },
+  { mode: "month", label: "Month", icon: CalendarDays },
+];
+
+/** List view status filter — paired with mobile “Status” Select and desktop pills. */
+const STATUS_FILTER_OPTIONS: { id: FilterType; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "pending", label: "Pending" },
+  { id: "confirmed", label: "Confirmed" },
+  { id: "cancelled", label: "Canceled/Denied" },
+];
+
 const statusColors: Record<string, string> = {
   pending: "bg-yellow-100 text-yellow-800",
   confirmed: "bg-blue-100 text-blue-800",
@@ -291,19 +310,22 @@ export default function OwnerBookings() {
     );
   }
 
-  const modeTabs: { mode: ScheduleMode; label: string; icon: typeof LayoutList }[] = [
-    { mode: "list", label: "List", icon: LayoutList },
-    { mode: "day", label: "Day", icon: Calendar },
-    { mode: "week", label: "Week", icon: CalendarRange },
-    { mode: "month", label: "Month", icon: CalendarDays },
-  ];
+  const statusFilterCount = (id: FilterType) =>
+    id === "all"
+      ? (bookings?.filter((b) => !terminalStatuses.has(b.status)).length ?? 0)
+      : id === "pending"
+        ? (bookings?.filter((b) => b.status === "pending").length ?? 0)
+        : id === "confirmed"
+          ? (bookings?.filter((b) => b.status === "confirmed" || b.status === "checked_in").length ?? 0)
+          : (bookings?.filter((b) => b.status === "cancelled" || b.status === "completed").length ?? 0);
 
   return (
-    <div className="p-4 space-y-4">
+    <div className="p-4 space-y-3 md:space-y-4">
       <h1 className="text-xl font-bold">Bookings</h1>
 
-      <div className="flex gap-1 overflow-x-auto pb-1">
-        {modeTabs.map(({ mode, label, icon: Icon }) => (
+      {/* Desktop: view mode pills */}
+      <div className="hidden md:flex gap-1 flex-wrap">
+        {VIEW_MODE_OPTIONS.map(({ mode, label, icon: Icon }) => (
           <button
             key={mode}
             type="button"
@@ -318,38 +340,64 @@ export default function OwnerBookings() {
         ))}
       </div>
 
+      {/* Mobile: single View select */}
+      <div className="md:hidden space-y-1">
+        <Label htmlFor="bookings-view-mode" className="text-xs font-medium text-muted-foreground">
+          View
+        </Label>
+        <Select value={scheduleMode} onValueChange={(v) => setScheduleMode(v as ScheduleMode)}>
+          <SelectTrigger id="bookings-view-mode" className="w-full h-9 bg-background">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {VIEW_MODE_OPTIONS.map(({ mode, label }) => (
+              <SelectItem key={mode} value={mode}>
+                {label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       {scheduleMode === "list" && (
-        <div className="flex gap-1.5 overflow-x-auto pb-1">
-          {(
-            [
-              { id: "all" as const, label: "All" },
-              { id: "pending" as const, label: "Pending" },
-              { id: "confirmed" as const, label: "Confirmed" },
-              { id: "cancelled" as const, label: "Canceled/Denied" },
-            ] as const
-          ).map(({ id, label }) => {
-            const count =
-              id === "all"
-                ? bookings?.filter((b) => !terminalStatuses.has(b.status)).length ?? 0
-                : id === "pending"
-                  ? bookings?.filter((b) => b.status === "pending").length ?? 0
-                  : id === "confirmed"
-                    ? bookings?.filter((b) => b.status === "confirmed" || b.status === "checked_in").length ?? 0
-                    : bookings?.filter((b) => b.status === "cancelled" || b.status === "completed").length ?? 0;
-            return (
-              <button
-                key={id}
-                type="button"
-                onClick={() => setFilter(id)}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
-                  filter === id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"
-                }`}
-              >
-                {label} ({count})
-              </button>
-            );
-          })}
-        </div>
+        <>
+          {/* Desktop: status pills */}
+          <div className="hidden md:flex gap-1.5 flex-wrap">
+            {STATUS_FILTER_OPTIONS.map(({ id, label }) => {
+              const count = statusFilterCount(id);
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setFilter(id)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
+                    filter === id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"
+                  }`}
+                >
+                  {label} ({count})
+                </button>
+              );
+            })}
+          </div>
+          {/* Mobile: single Status select */}
+          <div className="md:hidden space-y-1">
+            <Label htmlFor="bookings-status-filter" className="text-xs font-medium text-muted-foreground">
+              Status
+            </Label>
+            <Select value={filter} onValueChange={(v) => setFilter(v as FilterType)}>
+              <SelectTrigger id="bookings-status-filter" className="w-full h-9 bg-background">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {STATUS_FILTER_OPTIONS.map(({ id, label }) => (
+                  <SelectItem key={id} value={id}>
+                    {label} ({statusFilterCount(id)})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </>
       )}
 
       {scheduleMode === "list" && (() => {
@@ -359,12 +407,12 @@ export default function OwnerBookings() {
         const inDogs = ins.reduce((s, b) => s + dogCountForBooking(b), 0);
         const outDogs = outs.reduce((s, b) => s + dogCountForBooking(b), 0);
         return (
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-border/60 bg-muted/30 px-3 py-2 text-xs">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-border/60 bg-muted/30 px-3 py-2 text-xs">
             <span className="font-semibold text-muted-foreground">Today ({formatDate(t)})</span>
             <span className="font-bold text-primary tabular-nums">{inDogs} In</span>
             <span className="text-muted-foreground">·</span>
             <span className="font-bold text-chart-5 tabular-nums">{outDogs} Out</span>
-            <span className="text-[10px] text-muted-foreground ml-auto max-w-[14rem] sm:max-w-none">
+            <span className="hidden md:inline text-[10px] text-muted-foreground md:ml-auto md:max-w-[min(24rem,100%)]">
               In = check-ins; Out = departures (boarding: checkout date; daycare: same day as check-in).
             </span>
           </div>
@@ -678,7 +726,7 @@ export default function OwnerBookings() {
                 )
               )}
             </div>
-            <p className="text-[10px] text-muted-foreground">
+            <p className="hidden md:block text-[10px] text-muted-foreground">
               In = dogs checking in that day. Out = departures that day (boarding: checkout date; daycare: check-in
               day).
             </p>
@@ -708,42 +756,49 @@ export default function OwnerBookings() {
 
         return (
           <Card key={booking.id} className={`border-0 shadow-sm bg-white ${issues ? 'ring-1 ring-amber-300' : ''}`}>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-sm font-semibold">{dogLabel} · #{booking.id}</span>
-                  <DogBadgesInline badgeKeys={badgeKeysForBooking(booking)} badgeByKey={badgeByKey} />
-                  {dogCount > 1 && (
-                    <span className="px-1.5 py-0.5 text-[9px] font-semibold rounded-full bg-primary/10 text-primary">
-                      {dogCount} dogs · same reservation
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3 mb-2">
+                <div className="min-w-0 flex-1 space-y-1.5">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className="text-sm font-semibold leading-tight">{dogLabel}</span>
+                    <span className="text-xs text-muted-foreground tabular-nums">#{booking.id}</span>
+                    <DogBadgesInline badgeKeys={badgeKeysForBooking(booking)} badgeByKey={badgeByKey} />
+                    {dogCount > 1 && (
+                      <span className="px-1.5 py-0.5 text-[9px] font-semibold rounded-full bg-primary/10 text-primary leading-none">
+                        {dogCount} dogs
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className={`px-2 py-0.5 text-[10px] font-medium rounded-full leading-none ${statusColors[booking.status]}`}>
+                      {booking.status.replace("_", " ")}
                     </span>
-                  )}
-                  <span className={`px-2 py-0.5 text-[10px] font-medium rounded-full ${statusColors[booking.status]}`}>
-                    {booking.status.replace("_", " ")}
-                  </span>
-                  {(booking as any).serviceName && (
-                    <span className="text-[10px] text-muted-foreground font-medium">
-                      {(booking as any).serviceName}
-                    </span>
-                  )}
-                  {issues && (
-                    <span className="px-1.5 py-0.5 text-[9px] font-semibold rounded bg-amber-100 text-amber-800 flex items-center gap-0.5">
-                      <AlertTriangle className="h-2.5 w-2.5" /> INFO MISSING
-                    </span>
-                  )}
-                  {(booking as any).vaccineStatus === 'incomplete' && (
-                    <span className="px-1.5 py-0.5 text-[9px] font-semibold rounded bg-red-100 text-red-800 flex items-center gap-0.5">
-                      <ShieldAlert className="h-2.5 w-2.5" /> VACCINES
-                    </span>
-                  )}
-                  {(booking as any).vaccineStatus === 'complete' && (
-                    <span className="px-1.5 py-0.5 text-[9px] font-semibold rounded bg-green-100 text-green-700 flex items-center gap-0.5">
-                      <ShieldCheck className="h-2.5 w-2.5" /> VAX OK
-                    </span>
-                  )}
+                    {(booking as any).serviceName && (
+                      <span className="text-[10px] text-muted-foreground font-medium">
+                        {(booking as any).serviceName}
+                      </span>
+                    )}
+                    {issues && (
+                      <span className="px-1.5 py-0.5 text-[9px] font-semibold rounded bg-amber-100 text-amber-800 inline-flex items-center gap-0.5 leading-none">
+                        <AlertTriangle className="h-2.5 w-2.5 shrink-0" /> INFO MISSING
+                      </span>
+                    )}
+                    {(booking as any).vaccineStatus === 'incomplete' && (
+                      <span className="px-1.5 py-0.5 text-[9px] font-semibold rounded bg-red-100 text-red-800 inline-flex items-center gap-0.5 leading-none">
+                        <ShieldAlert className="h-2.5 w-2.5 shrink-0" /> VACCINES
+                      </span>
+                    )}
+                    {(booking as any).vaccineStatus === 'complete' && (
+                      <span className="px-1.5 py-0.5 text-[9px] font-semibold rounded bg-green-100 text-green-700 inline-flex items-center gap-0.5 leading-none">
+                        <ShieldCheck className="h-2.5 w-2.5 shrink-0" /> VAX OK
+                      </span>
+                    )}
+                  </div>
                 </div>
                 {booking.totalPrice != null && (
-                  <span className="text-sm font-bold">${String(booking.totalPrice)}</span>
+                  <span className="text-base font-bold tabular-nums shrink-0 sm:text-sm sm:pt-0.5">
+                    ${String(booking.totalPrice)}
+                  </span>
                 )}
               </div>
 
@@ -783,27 +838,29 @@ export default function OwnerBookings() {
               )}
 
               {dogCount > 1 && (
-                <p className="text-[10px] font-medium text-primary/90 mb-1">
+                <p className="hidden sm:block text-[10px] font-medium text-primary/90 mb-1">
                   All dogs above share booking #{booking.id} — arriving together.
                 </p>
               )}
               <div className="text-xs text-muted-foreground space-y-0.5">
-                <p className="flex items-center gap-1">
-                  <CalendarDays className="h-3 w-3" />
-                  {formatDate(booking.checkInDate)}
-                  {booking.checkOutDate && ` - ${formatDate(booking.checkOutDate)}`}
+                <p className="flex items-center gap-1.5 flex-wrap">
+                  <CalendarDays className="h-3 w-3 shrink-0" />
+                  <span>
+                    {formatDate(booking.checkInDate)}
+                    {booking.checkOutDate && ` → ${formatDate(booking.checkOutDate)}`}
+                  </span>
                 </p>
                 {booking.notes && (
-                  <p className="text-xs mt-1 italic">"{booking.notes}"</p>
+                  <p className="text-[11px] sm:text-xs mt-1 italic line-clamp-2 sm:line-clamp-none">"{booking.notes}"</p>
                 )}
               </div>
 
-              <div className="flex flex-wrap gap-2 mt-3">
+              <div className="flex flex-wrap gap-1.5 sm:gap-2 mt-2.5 sm:mt-3">
                 {booking.status === "pending" && (
                   <>
                     <Button
                       size="sm"
-                      className="h-7 text-xs gap-1"
+                      className="h-9 min-h-9 sm:h-7 sm:min-h-0 text-xs gap-1"
                       onClick={() => approveStay(booking)}
                       disabled={updateStatus.isPending}
                     >
@@ -812,7 +869,7 @@ export default function OwnerBookings() {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-7 text-xs gap-1"
+                      className="h-9 min-h-9 sm:h-7 sm:min-h-0 text-xs gap-1"
                       onClick={() => setEditBooking(booking)}
                       disabled={!canOwnerEdit}
                     >
@@ -821,7 +878,7 @@ export default function OwnerBookings() {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-7 text-xs gap-1 text-destructive border-destructive/30"
+                      className="h-9 min-h-9 sm:h-7 sm:min-h-0 text-xs gap-1 text-destructive border-destructive/30"
                       onClick={() => kennelId && cancelMutation.mutate({ id: booking.id, kennelId })}
                       disabled={!kennelId || cancelMutation.isPending}
                     >
@@ -834,7 +891,7 @@ export default function OwnerBookings() {
                   <>
                     <Button
                       size="sm"
-                      className="h-7 text-xs gap-1"
+                      className="h-9 min-h-9 sm:h-7 sm:min-h-0 text-xs gap-1"
                       onClick={() =>
                         updateStatus.mutate(
                           { id: booking.id, status: "checked_in" },
@@ -847,7 +904,7 @@ export default function OwnerBookings() {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-7 text-xs gap-1"
+                      className="h-9 min-h-9 sm:h-7 sm:min-h-0 text-xs gap-1"
                       onClick={() => setEditBooking(booking)}
                     >
                       <Pencil className="h-3 w-3" /> Edit
@@ -855,7 +912,7 @@ export default function OwnerBookings() {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-7 text-xs gap-1 text-destructive border-destructive/30"
+                      className="h-9 min-h-9 sm:h-7 sm:min-h-0 text-xs gap-1 text-destructive border-destructive/30"
                       onClick={() => setCancelTarget(booking)}
                     >
                       <XCircle className="h-3 w-3" /> Cancel booking
@@ -868,7 +925,7 @@ export default function OwnerBookings() {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-7 text-xs gap-1"
+                      className="h-9 min-h-9 sm:h-7 sm:min-h-0 text-xs gap-1"
                       onClick={() =>
                         updateStatus.mutate(
                           { id: booking.id, status: "checked_out" },
@@ -881,7 +938,7 @@ export default function OwnerBookings() {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-7 text-xs gap-1"
+                      className="h-9 min-h-9 sm:h-7 sm:min-h-0 text-xs gap-1"
                       onClick={() => setEditBooking(booking)}
                     >
                       <Pencil className="h-3 w-3" /> Edit
@@ -889,7 +946,7 @@ export default function OwnerBookings() {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-7 text-xs gap-1 text-destructive border-destructive/30"
+                      className="h-9 min-h-9 sm:h-7 sm:min-h-0 text-xs gap-1 text-destructive border-destructive/30"
                       onClick={() => setCancelTarget(booking)}
                     >
                       <XCircle className="h-3 w-3" /> Cancel booking

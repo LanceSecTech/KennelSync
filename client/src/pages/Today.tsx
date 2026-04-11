@@ -119,7 +119,7 @@ export default function Today() {
         dogName:
           b.dogName ||
           (b.dogNames?.length ? b.dogNames.join(", ") : getDogName(b.dogId, b)),
-        customerLabel: b.customerName || (b.customerId ? `Owner ${b.customerId}` : "Owner"),
+        customerLabel: b.customerName || b.customerEmail || (b.customerId ? `Owner ${b.customerId}` : "Owner"),
       })) || [];
 
   /** Add-on chips on booking cards, sourced from today's task rows */
