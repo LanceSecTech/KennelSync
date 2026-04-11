@@ -69,14 +69,8 @@ export function WebsiteHome() {
             </div>
           </div>
           <div className="mx-auto w-full max-w-md min-w-0 lg:mx-0 lg:max-w-none">
-            <div className="rounded-2xl border border-slate-200 bg-white p-2 shadow-lg shadow-emerald-100/30 sm:rounded-3xl sm:p-4 sm:shadow-xl sm:shadow-emerald-100/40 md:p-5">
-              <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-2 sm:rounded-2xl sm:p-4">
-                <div className="mb-2 flex flex-wrap items-center justify-between gap-2 sm:mb-3 md:mb-4">
-                  <p className="text-xs font-semibold text-slate-900 sm:text-sm">App preview</p>
-                  <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700 sm:px-2.5 sm:py-1 sm:text-xs">
-                    Live carousel
-                  </span>
-                </div>
+            <div className="rounded-2xl border border-slate-200/85 bg-white p-1.5 shadow-[0_12px_40px_-10px_rgba(15,23,42,0.12)] sm:rounded-3xl sm:p-3 sm:shadow-[0_16px_44px_-12px_rgba(15,23,42,0.14)] md:p-3.5">
+              <div className="rounded-lg border border-slate-200/70 bg-gradient-to-b from-slate-50/80 to-white p-1.5 sm:rounded-xl sm:p-2.5">
                 <MarketingScreenshotSlideshow slides={MARKETING_HOME_HERO_SLIDES} embedded compactMobile />
               </div>
             </div>
@@ -99,7 +93,7 @@ export function WebsiteHome() {
             </Button>
           </Link>
         </div>
-        <div className="mx-auto mt-6 min-w-0 max-w-3xl md:mt-10">
+        <div className="mx-auto mt-5 min-w-0 max-w-3xl md:mt-8">
           <MarketingScreenshotSlideshow slides={MARKETING_HOME_GLANCE_SLIDES} />
         </div>
       </section>

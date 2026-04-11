@@ -4,12 +4,114 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import {
-  CUSTOMER_PREVIEW_SLIDES,
-  EMPLOYEE_PREVIEW_SLIDES,
   MarketingScreenshotSlideshow,
   MARKETING_FEATURES_GALLERY_SLIDES,
   OWNER_HERO_SLIDES,
 } from "@/components/MarketingScreenshotSlideshow";
+import { MarketingScreenshotGrid, type MarketingGridItem } from "@/components/MarketingScreenshotGrid";
+import { marketingImages } from "@/lib/marketingImagePaths";
+import { marketingCaptionTextClass } from "@/lib/marketingScreenshotStyles";
+import { cn } from "@/lib/utils";
+
+/** Owner page — full-width gallery (edit captions here or swap paths in `marketingImagePaths.ts`). */
+const OWNERS_PRODUCT_GALLERY: MarketingGridItem[] = [
+  {
+    src: marketingImages.owners.dashboard,
+    alt: "KennelSync owner dashboard",
+    caption:
+      "Steer the business from one authoritative dashboard—occupancy, momentum, and what deserves your attention before the day runs away from you.",
+  },
+  {
+    src: marketingImages.owners.availWeek,
+    alt: "KennelSync availability calendar for kennel owners",
+    caption:
+      "Plan and protect capacity with a calendar that stays truthful as bookings move. Your team stops debating “what’s open” and starts executing.",
+  },
+  {
+    src: marketingImages.owners.bookingsMonth,
+    alt: "KennelSync bookings month view",
+    caption:
+      "See the month like an owner should: peaks, holes, and stay volume at a glance—so staffing and revenue decisions stay grounded in reality.",
+  },
+  {
+    src: marketingImages.owners.financials,
+    alt: "KennelSync financials for kennel owners",
+    caption:
+      "Pair operations with financial context in a view that feels enterprise-grade—built for owners who need numbers without living in a spreadsheet.",
+  },
+  {
+    src: marketingImages.owners.reports,
+    alt: "KennelSync owner reports",
+    caption:
+      "Export-ready insight that respects how kennels actually operate—professional enough for partners, clear enough for day-to-day leadership.",
+  },
+];
+
+const EMPLOYEES_PRODUCT_GALLERY: MarketingGridItem[] = [
+  {
+    src: marketingImages.employees.today,
+    alt: "KennelSync employee tasks and today view",
+    caption:
+      "Walk in knowing exactly what to tackle first—tasks, priorities, and alerts surfaced so nothing important waits on a sticky note.",
+  },
+  {
+    src: marketingImages.employees.dogs,
+    alt: "KennelSync employee dog profiles",
+    caption:
+      "Pull the right care context in seconds: feeding, meds, behavior, and signals your team needs to keep every dog safe and comfortable.",
+  },
+  {
+    src: marketingImages.employees.checkIn,
+    alt: "KennelSync check-in workflow",
+    caption:
+      "Check-ins that follow a consistent, professional rhythm—fewer missed steps, smoother handoffs, and a lobby that stays under control.",
+  },
+  {
+    src: marketingImages.employees.checkOut,
+    alt: "KennelSync check-out workflow",
+    caption:
+      "Close out stays with clarity for staff and pet parents alike—accurate handoffs, tidy records, and a polished last impression.",
+  },
+  {
+    src: marketingImages.employees.dashboard,
+    alt: "KennelSync employee dashboard",
+    caption:
+      "Your shift at a glance: active dogs, room reality, and the flow of the day—one calm hub instead of five different tools.",
+  },
+];
+
+const CUSTOMERS_PRODUCT_GALLERY: MarketingGridItem[] = [
+  {
+    src: marketingImages.customers.book,
+    alt: "KennelSync customer booking flow",
+    caption:
+      "Reserve stays through a clear, guided flow that feels as careful as your kennel—pet parents know what to expect, and your inbox stays quieter.",
+  },
+  {
+    src: marketingImages.customers.dogProfile,
+    alt: "KennelSync pet owner dog profile",
+    caption:
+      "Keep every dog’s story current before arrival—vaccines, care notes, and contacts in one trustworthy place that reduces stress at drop-off.",
+  },
+  {
+    src: marketingImages.customers.myStays,
+    alt: "KennelSync upcoming stays for customers",
+    caption:
+      "See upcoming reservations and stay status without chasing texts—confidence for families, fewer “where are we?” interruptions for your desk.",
+  },
+  {
+    src: marketingImages.customers.dashboard,
+    alt: "KennelSync customer dashboard",
+    caption:
+      "A simple home for bookings, dogs, and what’s next—pet parents stay oriented, and your brand feels as organized as your facility.",
+  },
+  {
+    src: marketingImages.customers.myDogs,
+    alt: "KennelSync customer dog list",
+    caption:
+      "Every pet in the family, organized and ready for the next booking—less repetition, fewer errors, and a more personal experience.",
+  },
+];
 
 /** Shared marketing page chrome — edit copy inside each page component below. */
 function PageSection({ className = "", children }: { className?: string; children: ReactNode }) {
@@ -128,12 +230,10 @@ export function WebsiteMarketingFeatures() {
       </PageSection>
       <PageSection className="pb-14 sm:pb-20">
         <h2 className="text-2xl font-semibold text-slate-900 sm:text-3xl">Product gallery</h2>
-        <p className="mt-2 max-w-2xl text-slate-600">
-          Slides auto-advance; swipe or use arrows on touch and desktop. Replace image URLs in{" "}
-          <code className="rounded bg-slate-100 px-1.5 py-0.5 text-sm">MarketingScreenshotSlideshow.tsx</code> (
-          <code className="rounded bg-slate-100 px-1.5 py-0.5 text-sm">MARKETING_FEATURES_GALLERY_SLIDES</code>).
+        <p className="mt-2 max-w-2xl text-pretty text-slate-600">
+          A quick tour across owner, staff, and customer surfaces—auto-advancing with swipe and arrow controls on any device.
         </p>
-        <div className="mx-auto mt-8 max-w-4xl">
+        <div className="mx-auto mt-6 max-w-4xl sm:mt-7">
           <MarketingScreenshotSlideshow slides={MARKETING_FEATURES_GALLERY_SLIDES} />
         </div>
       </PageSection>
@@ -168,7 +268,7 @@ function OwnerHeroPreviewPanel() {
             app.kennelsync.com / owner
           </div>
         </div>
-        <div className="relative mt-2 overflow-hidden rounded-2xl border border-slate-100 bg-slate-50 p-2 sm:p-2.5">
+        <div className="relative mt-2 overflow-hidden rounded-xl border border-slate-100/90 bg-slate-50/50 p-1.5 sm:mt-2 sm:rounded-2xl sm:p-2">
           <MarketingScreenshotSlideshow slides={OWNER_HERO_SLIDES} embedded compactMobile autoplayIntervalMs={7000} />
         </div>
       </div>
@@ -329,6 +429,17 @@ export function WebsiteMarketingOwners() {
             </Card>
           ))}
         </div>
+        <div className="mt-12 border-t border-slate-200/70 pt-12 sm:mt-16 sm:pt-16">
+          <div className="mx-auto max-w-2xl text-center">
+            <h3 className="text-xl font-semibold tracking-tight text-slate-900 sm:text-2xl">Inside the owner experience</h3>
+            <p className="mt-2 text-pretty text-sm leading-relaxed text-slate-600 sm:text-[15px]">
+              Real screens from the product—paired with how each view supports revenue, capacity, and team execution.
+            </p>
+          </div>
+          <div className="mx-auto mt-8 max-w-5xl sm:mt-9">
+            <MarketingScreenshotGrid items={OWNERS_PRODUCT_GALLERY} />
+          </div>
+        </div>
       </PageSection>
 
       <OwnersBookDemoSection />
@@ -393,15 +504,15 @@ export function WebsiteMarketingEmployees() {
         </div>
       </PageSection>
       <PageSection className="pb-14 sm:pb-20">
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-          <h2 className="text-xl font-semibold text-slate-900">Employee workflow preview</h2>
-          <p className="mt-2 text-sm text-slate-600">
-            Slideshow — swap images in{" "}
-            <code className="rounded bg-slate-100 px-1 py-0.5 text-xs">EMPLOYEE_PREVIEW_SLIDES</code> in{" "}
-            <code className="rounded bg-slate-100 px-1 py-0.5 text-xs">MarketingScreenshotSlideshow.tsx</code>.
-          </p>
-          <div className="mx-auto mt-6 max-w-3xl">
-            <MarketingScreenshotSlideshow slides={EMPLOYEE_PREVIEW_SLIDES} />
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_10px_36px_-10px_rgba(15,23,42,0.1)] sm:p-8 lg:p-9">
+          <div className="mx-auto max-w-2xl text-center">
+            <h2 className="text-xl font-semibold tracking-tight text-slate-900 sm:text-2xl">Built for the floor, not the brochure</h2>
+            <p className="mt-2 text-pretty text-sm leading-relaxed text-slate-600 sm:text-[15px]">
+              The screens your team lives in—check-ins, dogs, and the rhythm of the day—presented with room to breathe.
+            </p>
+          </div>
+          <div className="mx-auto mt-8 max-w-5xl sm:mt-9">
+            <MarketingScreenshotGrid items={EMPLOYEES_PRODUCT_GALLERY} />
           </div>
         </div>
       </PageSection>
@@ -454,13 +565,39 @@ export function WebsiteMarketingCustomers() {
         </div>
       </PageSection>
       <PageSection className="pb-14 sm:pb-20">
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-          <h2 className="text-xl font-semibold text-slate-900">Customer experience preview</h2>
-          <p className="mt-2 text-sm text-slate-600">
-            Images: <code className="rounded bg-slate-100 px-1 py-0.5 text-xs">CUSTOMER_PREVIEW_SLIDES</code>.
-          </p>
-          <div className="mx-auto mt-6 max-w-3xl">
-            <MarketingScreenshotSlideshow slides={CUSTOMER_PREVIEW_SLIDES} />
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_10px_36px_-10px_rgba(15,23,42,0.1)] sm:p-8 lg:p-9">
+          <div className="mx-auto max-w-2xl text-center">
+            <h2 className="text-xl font-semibold tracking-tight text-slate-900 sm:text-2xl">The experience pet parents remember</h2>
+            <p className="mt-2 text-pretty text-sm leading-relaxed text-slate-600 sm:text-[15px]">
+              Booking, profiles, and stay visibility that feel calm, clear, and worthy of the care you deliver in person.
+            </p>
+          </div>
+          <div className="mx-auto mt-8 max-w-5xl sm:mt-9">
+            <MarketingScreenshotGrid items={CUSTOMERS_PRODUCT_GALLERY} />
+          </div>
+          <div className="mx-auto mt-12 max-w-lg border-t border-slate-200/70 pt-10 text-center sm:mt-14 sm:pt-12">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-emerald-700/90">On the go</p>
+            <h3 className="mt-1.5 text-lg font-semibold tracking-tight text-slate-900 sm:text-xl">Mobile booking, same premium feel</h3>
+            <p className="mx-auto mt-2 max-w-sm text-pretty text-sm leading-relaxed text-slate-600">
+              Pet parents can start a reservation from their phone—intentionally framed here so mobile reads as a first-class
+              experience, not an afterthought.
+            </p>
+            <div className="mx-auto mt-6 max-w-[260px] sm:mt-7">
+              <div className="rounded-[1.6rem] border-[9px] border-slate-800 bg-slate-800 p-0.5 shadow-[0_20px_48px_-12px_rgba(15,23,42,0.38)] ring-1 ring-black/10">
+                <div className="overflow-hidden rounded-[1.05rem] bg-slate-950">
+                  <img
+                    src={marketingImages.customersMobile.newBooking}
+                    alt="KennelSync mobile new booking"
+                    className="w-full object-contain object-top"
+                    loading="lazy"
+                  />
+                </div>
+              </div>
+              <p className={cn(marketingCaptionTextClass, "mx-auto mt-3 max-w-sm text-center sm:mt-3.5")}>
+                A focused mobile flow for new bookings—fewer taps, less confusion, and a path that reinforces trust before they
+                ever reach your lobby.
+              </p>
+            </div>
           </div>
         </div>
       </PageSection>
