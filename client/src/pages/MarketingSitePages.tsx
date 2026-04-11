@@ -3,6 +3,13 @@ import { CalendarDays, CreditCard, LayoutDashboard, UsersRound } from "lucide-re
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
+import {
+  CUSTOMER_PREVIEW_SLIDES,
+  EMPLOYEE_PREVIEW_SLIDES,
+  MarketingScreenshotSlideshow,
+  MARKETING_FEATURES_GALLERY_SLIDES,
+  OWNER_HERO_SLIDES,
+} from "@/components/MarketingScreenshotSlideshow";
 
 /** Shared marketing page chrome — edit copy inside each page component below. */
 function PageSection({ className = "", children }: { className?: string; children: ReactNode }) {
@@ -32,14 +39,6 @@ function MarketingHero({
         {children ? <div className="mt-8">{children}</div> : null}
       </PageSection>
     </section>
-  );
-}
-
-function ScreenshotPlaceholder({ label }: { label: string }) {
-  return (
-    <div className="flex aspect-[4/3] items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 sm:aspect-[16/10]">
-      <span className="px-4 text-center text-sm font-medium text-slate-500">{label}</span>
-    </div>
   );
 }
 
@@ -130,16 +129,12 @@ export function WebsiteMarketingFeatures() {
       <PageSection className="pb-14 sm:pb-20">
         <h2 className="text-2xl font-semibold text-slate-900 sm:text-3xl">Product gallery</h2>
         <p className="mt-2 max-w-2xl text-slate-600">
-          Swap these placeholders for real screenshots in <code className="rounded bg-slate-100 px-1.5 py-0.5 text-sm">MarketingSitePages.tsx</code>{" "}
-          (search for <code className="rounded bg-slate-100 px-1.5 py-0.5 text-sm">ScreenshotPlaceholder</code>).
+          Slides auto-advance; swipe or use arrows on touch and desktop. Replace image URLs in{" "}
+          <code className="rounded bg-slate-100 px-1.5 py-0.5 text-sm">MarketingScreenshotSlideshow.tsx</code> (
+          <code className="rounded bg-slate-100 px-1.5 py-0.5 text-sm">MARKETING_FEATURES_GALLERY_SLIDES</code>).
         </p>
-        <div className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {["Owner Dashboard", "Booking Management", "Dog Profiles", "Employee Workflow", "Customer Booking"].map((label) => (
-            <div key={label} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <ScreenshotPlaceholder label={`${label} — add image`} />
-              <p className="mt-3 text-sm font-semibold text-slate-900">{label}</p>
-            </div>
-          ))}
+        <div className="mx-auto mt-8 max-w-4xl">
+          <MarketingScreenshotSlideshow slides={MARKETING_FEATURES_GALLERY_SLIDES} />
         </div>
       </PageSection>
       <BottomCTA
@@ -154,22 +149,14 @@ export function WebsiteMarketingFeatures() {
   );
 }
 
-/**
- * Owner marketing screenshots — drop files in `client/public/` (e.g. `/owner-hero.png`) and set URLs here.
- * Leave as null to show styled placeholders until assets are ready.
- */
-const OWNER_PAGE_SCREENSHOTS = {
-  /** Main hero preview (wide) — recommended ~1600×1200 or similar, top-cropped dashboard. */
-  heroMain: null as string | null,
-  /** Smaller inset card (e.g. bookings or reports) — ~640×480 works well. */
-  heroInset: null as string | null,
-} as const;
+/** Inset card only — main hero uses `OWNER_HERO_SLIDES` in MarketingScreenshotSlideshow.tsx */
+const OWNER_PAGE_INSET_IMAGE: string | null = null;
 
 function OwnerHeroPreviewPanel() {
-  const { heroMain, heroInset } = OWNER_PAGE_SCREENSHOTS;
+  const heroInset = OWNER_PAGE_INSET_IMAGE;
 
   return (
-    <div className="relative mx-auto w-full max-w-lg lg:max-w-none">
+    <div className="relative mx-auto w-full max-w-lg pb-6 sm:pb-8 lg:max-w-none">
       <div className="rounded-3xl border border-slate-200/90 bg-white p-2 shadow-[0_24px_60px_-12px_rgba(16,185,129,0.2)] ring-1 ring-slate-900/[0.04]">
         <div className="flex items-center gap-2 rounded-2xl border border-slate-100 bg-gradient-to-b from-slate-50 to-white px-4 py-3">
           <div className="flex gap-1.5" aria-hidden>
@@ -181,47 +168,8 @@ function OwnerHeroPreviewPanel() {
             app.kennelsync.com / owner
           </div>
         </div>
-        <div className="relative mt-2 overflow-hidden rounded-2xl border border-slate-100 bg-slate-50">
-          {heroMain ? (
-            <img
-              src={heroMain}
-              alt="KennelSync owner dashboard preview"
-              className="aspect-[4/3] w-full object-cover object-top"
-            />
-          ) : (
-            <div className="flex aspect-[4/3] w-full flex-col bg-gradient-to-br from-emerald-50/90 via-white to-slate-100 p-5 sm:p-7">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-700/80">Today</p>
-                  <p className="mt-1 text-2xl font-semibold tabular-nums text-slate-900 sm:text-3xl">78%</p>
-                  <p className="text-xs text-slate-500">Occupancy</p>
-                </div>
-                <div className="rounded-xl border border-emerald-100 bg-white/90 px-3 py-2 text-right shadow-sm">
-                  <p className="text-[10px] font-medium text-slate-500">Active stays</p>
-                  <p className="text-lg font-semibold tabular-nums text-slate-900">46</p>
-                </div>
-              </div>
-              <div className="mt-5 grid flex-1 grid-cols-3 gap-2 sm:gap-3">
-                <div className="rounded-xl border border-slate-200/80 bg-white/80 p-2 shadow-sm sm:p-3">
-                  <div className="h-2 w-8 rounded bg-emerald-200/80" />
-                  <div className="mt-3 space-y-1.5">
-                    <div className="h-1.5 rounded bg-slate-200" />
-                    <div className="h-1.5 w-4/5 rounded bg-slate-100" />
-                  </div>
-                </div>
-                <div className="col-span-2 rounded-xl border border-slate-200/80 bg-white/90 p-2 shadow-sm sm:p-3">
-                  <div className="flex gap-2">
-                    <div className="h-16 flex-1 rounded-lg bg-gradient-to-b from-emerald-100/50 to-slate-50" />
-                    <div className="hidden w-20 flex-col justify-between rounded-lg border border-slate-100 bg-slate-50/80 p-2 sm:flex">
-                      <div className="h-1.5 w-full rounded bg-slate-200" />
-                      <div className="h-1.5 w-2/3 rounded bg-slate-200" />
-                      <div className="h-1.5 w-full rounded bg-slate-200" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+        <div className="relative mt-2 overflow-hidden rounded-2xl border border-slate-100 bg-slate-50 p-2 sm:p-2.5">
+          <MarketingScreenshotSlideshow slides={OWNER_HERO_SLIDES} embedded autoplayIntervalMs={7000} />
         </div>
       </div>
 
@@ -447,9 +395,13 @@ export function WebsiteMarketingEmployees() {
       <PageSection className="pb-14 sm:pb-20">
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
           <h2 className="text-xl font-semibold text-slate-900">Employee workflow preview</h2>
-          <p className="mt-2 text-sm text-slate-600">Replace with a real screenshot of Today / Check-in / Rooms.</p>
-          <div className="mt-6">
-            <ScreenshotPlaceholder label="Employee Workflow — add image" />
+          <p className="mt-2 text-sm text-slate-600">
+            Slideshow — swap images in{" "}
+            <code className="rounded bg-slate-100 px-1 py-0.5 text-xs">EMPLOYEE_PREVIEW_SLIDES</code> in{" "}
+            <code className="rounded bg-slate-100 px-1 py-0.5 text-xs">MarketingScreenshotSlideshow.tsx</code>.
+          </p>
+          <div className="mx-auto mt-6 max-w-3xl">
+            <MarketingScreenshotSlideshow slides={EMPLOYEE_PREVIEW_SLIDES} />
           </div>
         </div>
       </PageSection>
@@ -504,9 +456,11 @@ export function WebsiteMarketingCustomers() {
       <PageSection className="pb-14 sm:pb-20">
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
           <h2 className="text-xl font-semibold text-slate-900">Customer experience preview</h2>
-          <div className="mt-6 grid gap-4 sm:grid-cols-2">
-            <ScreenshotPlaceholder label="Booking flow — add image" />
-            <ScreenshotPlaceholder label="My Stays / profile — add image" />
+          <p className="mt-2 text-sm text-slate-600">
+            Images: <code className="rounded bg-slate-100 px-1 py-0.5 text-xs">CUSTOMER_PREVIEW_SLIDES</code>.
+          </p>
+          <div className="mx-auto mt-6 max-w-3xl">
+            <MarketingScreenshotSlideshow slides={CUSTOMER_PREVIEW_SLIDES} />
           </div>
         </div>
       </PageSection>

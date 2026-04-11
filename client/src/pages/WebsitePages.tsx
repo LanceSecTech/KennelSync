@@ -7,6 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Link, useLocation } from "wouter";
+import {
+  MarketingScreenshotSlideshow,
+  MARKETING_HOME_GLANCE_SLIDES,
+  MARKETING_HOME_HERO_SLIDES,
+} from "@/components/MarketingScreenshotSlideshow";
 
 function getAuthModeFromUrl(): "login" | "signup" {
   if (typeof window === "undefined") return "login";
@@ -15,12 +20,6 @@ function getAuthModeFromUrl(): "login" | "signup" {
 }
 
 export function WebsiteHome() {
-  const previews = [
-    { label: "Owner overview", hint: "Dashboard metrics and occupancy at a glance." },
-    { label: "Bookings", hint: "Pipeline and stay management." },
-    { label: "Dog profiles", hint: "Care notes and vaccine context in one place." },
-  ];
-
   const roles = [
     {
       title: "Owners",
@@ -69,31 +68,14 @@ export function WebsiteHome() {
             </div>
           </div>
           <div className="rounded-3xl border border-slate-200 bg-white p-3 shadow-xl shadow-emerald-100/40 sm:p-5">
-            <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-4 sm:p-5">
-              <div className="mb-4 flex items-center justify-between">
+            <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-3 sm:p-4">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2 sm:mb-4">
                 <p className="text-sm font-semibold text-slate-900">App preview</p>
                 <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
-                  Owner Dashboard
+                  Live carousel
                 </span>
               </div>
-              <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
-                <div className="rounded-xl border border-slate-200 bg-white p-3">
-                  <p className="text-xs text-slate-500">Today&apos;s occupancy</p>
-                  <p className="mt-2 text-2xl font-semibold text-slate-900">78%</p>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-white p-3">
-                  <p className="text-xs text-slate-500">Active bookings</p>
-                  <p className="mt-2 text-2xl font-semibold text-slate-900">46</p>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-white p-3">
-                  <p className="text-xs text-slate-500">Check-ins today</p>
-                  <p className="mt-2 text-2xl font-semibold text-slate-900">12</p>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-white p-3">
-                  <p className="text-xs text-slate-500">Pending tasks</p>
-                  <p className="mt-2 text-2xl font-semibold text-slate-900">7</p>
-                </div>
-              </div>
+              <MarketingScreenshotSlideshow slides={MARKETING_HOME_HERO_SLIDES} embedded />
             </div>
           </div>
         </div>
@@ -114,16 +96,8 @@ export function WebsiteHome() {
             </Button>
           </Link>
         </div>
-        <div className="mt-8 grid gap-4 md:mt-10 md:grid-cols-3">
-          {previews.map((p) => (
-            <div key={p.label} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <div className="flex aspect-[16/10] items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50">
-                <span className="px-3 text-center text-sm font-medium text-slate-500">{p.label}</span>
-              </div>
-              <p className="mt-3 text-sm font-semibold text-slate-900">{p.label}</p>
-              <p className="text-xs text-slate-500">{p.hint}</p>
-            </div>
-          ))}
+        <div className="mx-auto mt-8 max-w-3xl md:mt-10">
+          <MarketingScreenshotSlideshow slides={MARKETING_HOME_GLANCE_SLIDES} />
         </div>
       </section>
 

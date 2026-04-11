@@ -14,6 +14,14 @@ const footerLinks = [
   { href: "/guidelines", label: "Guidelines" },
 ];
 
+const MOBILE_NAV_ITEMS = [
+  { href: "/features", label: "Features" },
+  { href: "/owners", label: "For Owners" },
+  { href: "/employees", label: "For Employees" },
+  { href: "/customers", label: "For Customers" },
+  { href: "/contact", label: "Book a Demo" },
+] as const;
+
 export default function WebsiteLayout({ children }: { children: ReactNode }) {
   const [location] = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -22,44 +30,43 @@ export default function WebsiteLayout({ children }: { children: ReactNode }) {
     setMobileMenuOpen(false);
   }, [location]);
 
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [mobileMenuOpen]);
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMobileMenuOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [mobileMenuOpen]);
+
   return (
-    <div className="relative min-h-screen overflow-hidden bg-white text-slate-900">
+    <div className="relative min-h-screen overflow-x-hidden bg-white text-slate-900">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_18%,rgba(34,197,94,0.16),transparent_34%),radial-gradient(circle_at_85%_20%,rgba(134,239,172,0.22),transparent_40%),linear-gradient(180deg,#f0fdf4_0%,#ffffff_52%,#f8fafc_100%)]" />
 
-      <header className="sticky top-0 z-30 border-b border-emerald-100/70 bg-white/95 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-7xl flex-col px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-y-2 lg:px-8">
-          <div className="flex items-center justify-between gap-3 sm:contents">
-            <Link href="/">
-              <span className="text-lg font-semibold tracking-wide text-emerald-700">KennelSync</span>
-            </Link>
-            <button
-              type="button"
-              aria-expanded={mobileMenuOpen}
-              aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-slate-700 transition hover:bg-emerald-50 hover:text-emerald-700 sm:hidden"
-              onClick={() => setMobileMenuOpen((open) => !open)}
-            >
-              {mobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
-            </button>
-          </div>
-          <nav className="hidden w-full flex-wrap items-center gap-x-4 gap-y-2 text-sm text-slate-700 sm:flex sm:flex-1 sm:justify-center lg:w-auto lg:flex-none">
-            <Link href="/features" className="transition hover:text-emerald-700">
-              Features
-            </Link>
-            <Link href="/owners" className="transition hover:text-emerald-700">
-              For Owners
-            </Link>
-            <Link href="/employees" className="transition hover:text-emerald-700">
-              For Employees
-            </Link>
-            <Link href="/customers" className="transition hover:text-emerald-700">
-              For Customers
-            </Link>
-            <Link href="/contact" className="transition hover:text-emerald-700">
-              Book a Demo
-            </Link>
+      <header className="relative sticky top-0 z-50 border-b border-emerald-100/70 bg-white/95 backdrop-blur">
+        <div className="relative z-20 mx-auto flex min-h-14 w-full max-w-7xl items-center justify-between gap-3 px-4 py-3 lg:min-h-0 lg:px-8">
+          <Link href="/" className="shrink-0">
+            <span className="text-lg font-semibold tracking-wide text-emerald-700">KennelSync</span>
+          </Link>
+
+          <nav className="hidden flex-1 flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm text-slate-700 lg:flex">
+            {MOBILE_NAV_ITEMS.map((item) => (
+              <Link key={item.href} href={item.href} className="transition hover:text-emerald-700">
+                {item.label}
+              </Link>
+            ))}
           </nav>
-          <nav className="hidden items-center gap-2 text-sm sm:flex sm:justify-end">
+
+          <nav className="hidden shrink-0 items-center gap-2 text-sm lg:flex">
             <Link href="/login?mode=login">
               <Button
                 variant="ghost"
@@ -75,36 +82,52 @@ export default function WebsiteLayout({ children }: { children: ReactNode }) {
             </Link>
           </nav>
 
-          {mobileMenuOpen ? (
-            <div className="mt-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-lg sm:hidden">
-              <nav className="flex flex-col text-sm font-medium text-slate-700">
-                {[
-                  { href: "/features", label: "Features" },
-                  { href: "/owners", label: "For Owners" },
-                  { href: "/employees", label: "For Employees" },
-                  { href: "/customers", label: "For Customers" },
-                  { href: "/contact", label: "Book a Demo" },
-                ].map((item) => (
-                  <Link key={item.href} href={item.href} className="rounded-lg px-3 py-2.5 transition hover:bg-emerald-50 hover:text-emerald-700">
+          <button
+            type="button"
+            aria-expanded={mobileMenuOpen}
+            aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-200 text-slate-700 transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 lg:hidden"
+            onClick={() => setMobileMenuOpen((open) => !open)}
+          >
+            {mobileMenuOpen ? <X className="h-5 w-5" strokeWidth={1.75} /> : <Menu className="h-5 w-5" strokeWidth={1.75} />}
+          </button>
+        </div>
+
+        {mobileMenuOpen ? (
+          <>
+            <button
+              type="button"
+              aria-label="Close menu"
+              className="fixed inset-0 z-10 bg-slate-900/40 backdrop-blur-[2px] lg:hidden"
+              onClick={() => setMobileMenuOpen(false)}
+            />
+            <div className="absolute left-0 right-0 top-full z-30 max-h-[min(72vh,560px)] overflow-y-auto border-t border-slate-100 bg-white px-4 py-4 shadow-lg lg:hidden">
+              <nav className="flex flex-col gap-0.5 text-[15px] font-medium text-slate-800">
+                {MOBILE_NAV_ITEMS.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className="rounded-xl px-3 py-3 transition hover:bg-emerald-50 hover:text-emerald-800"
+                  >
                     {item.label}
                   </Link>
                 ))}
               </nav>
-              <div className="mt-3 grid gap-2 border-t border-slate-200 pt-3">
+              <div className="mt-4 grid gap-2.5 border-t border-slate-100 pt-4">
                 <Link href="/login?mode=login">
-                  <Button variant="outline" className="h-10 w-full rounded-full border-slate-300 text-sm font-semibold">
+                  <Button variant="outline" className="h-11 w-full rounded-full border-slate-300 text-sm font-semibold">
                     Login
                   </Button>
                 </Link>
                 <Link href="/signup">
-                  <Button className="h-10 w-full rounded-full bg-emerald-500 text-sm font-semibold text-white hover:bg-emerald-600">
+                  <Button className="h-11 w-full rounded-full bg-emerald-500 text-sm font-semibold text-white hover:bg-emerald-600">
                     Sign Up
                   </Button>
                 </Link>
               </div>
             </div>
-          ) : null}
-        </div>
+          </>
+        ) : null}
       </header>
 
       <main className="relative z-10 pb-24">{children}</main>
