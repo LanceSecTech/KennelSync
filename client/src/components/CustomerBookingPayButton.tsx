@@ -2,7 +2,12 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { ExternalLink, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { CUSTOMER_ONLINE_PAYMENT_UNAVAILABLE } from "@shared/paymentMessages";
+import {
+  CUSTOMER_CHECKOUT_START_FAILED,
+  CUSTOMER_ONLINE_PAYMENT_UNAVAILABLE,
+  customerSafePaymentErrorMessage,
+} from "@shared/paymentMessages";
+import { trpcErrorMessage } from "@/lib/trpcErrorMessage";
 
 type Props = {
   bookingId: number;
@@ -24,7 +29,10 @@ export function CustomerBookingPayButton({ bookingId, disabled, onCheckoutStart,
         window.location.assign(res.url);
       }
     },
-    onError: (e) => toast.error(e.message || "Could not start payment"),
+    onError: (e) =>
+      toast.error(
+        customerSafePaymentErrorMessage(trpcErrorMessage(e), CUSTOMER_CHECKOUT_START_FAILED),
+      ),
   });
 
   if (isLoading) {

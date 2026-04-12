@@ -4,7 +4,11 @@ import { trpc } from "@/lib/trpc";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { parseStripeOwnerConnectError } from "@shared/stripeConnectOwnerTrpc";
+import { trpcErrorMessage } from "@/lib/trpcErrorMessage";
+import {
+  messageContainsStripeOwnerConnectCode,
+  parseStripeOwnerConnectError,
+} from "@shared/stripeConnectOwnerTrpc";
 import { STRIPE_DASHBOARD_CONNECT_SETTINGS_URL_DEFAULT } from "@shared/stripeDashboardUrls";
 
 function stripeDashboardConnectSettingsUrl(): string {
@@ -32,17 +36,27 @@ export function KennelStripeConnectCard({ kennelId }: { kennelId: number }) {
     }
   }, [data?.canAcceptBookingPayments]);
 
-  const handleOwnerConnectError = (message: string | undefined) => {
+  const handleOwnerConnectError = (err: unknown) => {
+    const message = trpcErrorMessage(err);
     const parsed = parseStripeOwnerConnectError(message);
+
     if (parsed?.kind === "platform_connect_setup") {
       setPlatformSetupBlocked(true);
       return;
     }
-    if (parsed?.kind === "generic" && parsed.detail.trim()) {
-      toast.error(parsed.detail.trim());
+
+    if (parsed?.kind === "generic") {
+      const d = parsed.detail.trim();
+      toast.error(d || "We couldn’t complete that Stripe request. Please try again.");
       return;
     }
-    toast.error(message?.trim() || "Could not complete that request. Please try again.");
+
+    if (messageContainsStripeOwnerConnectCode(message)) {
+      setPlatformSetupBlocked(true);
+      return;
+    }
+
+    toast.error(message || "Could not complete that request. Please try again.");
   };
 
   const linkMut = trpc.stripeConnect.createOnboardingLink.useMutation({
@@ -50,7 +64,7 @@ export function KennelStripeConnectCard({ kennelId }: { kennelId: number }) {
       setPlatformSetupBlocked(false);
       if (r.url) window.location.href = r.url;
     },
-    onError: (e) => handleOwnerConnectError(e.message),
+    onError: (e) => handleOwnerConnectError(e),
   });
 
   const syncMut = trpc.stripeConnect.syncFromStripe.useMutation({
@@ -59,7 +73,7 @@ export function KennelStripeConnectCard({ kennelId }: { kennelId: number }) {
       void utils.stripeConnect.status.invalidate({ kennelId });
       void utils.ownerBilling.access.invalidate({ kennelId });
     },
-    onError: (e) => handleOwnerConnectError(e.message),
+    onError: (e) => handleOwnerConnectError(e),
   });
 
   useEffect(() => {
@@ -68,13 +82,20 @@ export function KennelStripeConnectCard({ kennelId }: { kennelId: number }) {
     const c = sp.get("connect");
     if (c !== "return" && c !== "refresh") return;
     let cancelled = false;
-    void syncMut.mutateAsync({ kennelId }).then(() => {
-      if (cancelled) return;
-      sp.delete("connect");
-      const q = sp.toString();
-      window.history.replaceState({}, "", window.location.pathname + (q ? `?${q}` : ""));
-      toast.success("Payment account status updated.");
-    });
+    void syncMut
+      .mutateAsync({ kennelId })
+      .then(() => {
+        if (cancelled) return;
+        sp.delete("connect");
+        const q = sp.toString();
+        window.history.replaceState({}, "", window.location.pathname + (q ? `?${q}` : ""));
+        toast.success("Payment account status updated.");
+      })
+      .catch(() => {
+        if (cancelled) return;
+        // syncMut.onError + handleOwnerConnectError already ran; swallow rejection so the raw TRPCClientError
+        // does not surface as an unhandled promise rejection / dev overlay.
+      });
     return () => {
       cancelled = true;
     };
@@ -119,38 +140,39 @@ export function KennelStripeConnectCard({ kennelId }: { kennelId: number }) {
         {platformSetupBlocked ? (
           <div
             role="status"
-            className="rounded-lg border border-amber-200/90 bg-amber-50/90 px-3 py-3 shadow-sm space-y-3"
+            aria-live="polite"
+            className="rounded-lg border border-amber-200/90 bg-amber-50/90 px-4 py-4 shadow-sm space-y-4"
           >
-            <div className="space-y-1.5">
-              <p className="text-sm font-semibold text-amber-950">Finish Stripe platform setup</p>
+            <div className="space-y-2">
+              <p className="text-sm font-semibold text-amber-950 tracking-tight">Online Payouts Aren&apos;t Ready Yet</p>
               <p className="text-xs leading-relaxed text-amber-950/90">
-                Your Stripe account needs Connect platform configuration before you can link a bank for kennel payouts.
-                Open Connect settings in Stripe, complete any required steps (including responsibilities and payout
-                settings), then try linking again.
+                Stripe needs your platform&apos;s Connect settings finished before you can link a bank account for this
+                kennel. In the Stripe Dashboard, open Connect settings and complete any required steps (responsibilities,
+                payout configuration, etc.), then return here and try again.
               </p>
               <p className="text-[11px] leading-relaxed text-amber-900/80">
-                Payouts to your kennel stay disabled until Stripe marks your platform Connect setup complete.
+                Customer payouts stay disabled until Stripe marks your platform Connect setup complete.
               </p>
             </div>
-            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+            <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-stretch">
               <Button
                 type="button"
                 size="sm"
                 variant="outline"
-                className="w-full border-amber-300 bg-white hover:bg-amber-50/80 sm:w-auto gap-1.5"
+                className="w-full border-amber-300 bg-white hover:bg-amber-50/80 sm:w-auto gap-2 h-9 px-3"
                 onClick={openStripeConnectSettings}
               >
-                <ExternalLink className="h-3.5 w-3.5" aria-hidden />
-                Open Stripe Connect settings
+                <ExternalLink className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                Open Stripe Connect Settings
               </Button>
               <Button
                 type="button"
                 size="sm"
-                className="w-full font-semibold sm:w-auto"
+                className="w-full font-semibold sm:w-auto h-9 px-4"
                 onClick={retryOnboarding}
                 disabled={linkMut.isPending}
               >
-                {linkMut.isPending ? "Connecting…" : "Try again"}
+                {linkMut.isPending ? "Connecting…" : "Try Again"}
               </Button>
             </div>
           </div>

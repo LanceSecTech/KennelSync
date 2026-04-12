@@ -8,7 +8,12 @@ import { useLocation } from "wouter";
 import { ArrowLeft, ArrowRight, Dog, Calendar, CheckCircle2, Sparkles, Home, Sun, CreditCard, Clock, Plus } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
 import { toast } from "sonner";
-import { CUSTOMER_ONLINE_PAYMENT_UNAVAILABLE } from "@shared/paymentMessages";
+import {
+  CUSTOMER_CHECKOUT_START_FAILED,
+  CUSTOMER_ONLINE_PAYMENT_UNAVAILABLE,
+  customerSafePaymentErrorMessage,
+} from "@shared/paymentMessages";
+import { trpcErrorMessage } from "@/lib/trpcErrorMessage";
 
 type Step = "dogs" | "service" | "dates" | "addons" | "review";
 
@@ -74,7 +79,8 @@ export default function BookingFlow() {
         window.location.assign(data.url);
       }
     },
-    onError: (err) => toast.error(err.message || "Failed to create checkout"),
+    onError: (err) =>
+      toast.error(customerSafePaymentErrorMessage(trpcErrorMessage(err), CUSTOMER_CHECKOUT_START_FAILED)),
   });
 
   const createBooking = trpc.booking.create.useMutation({
