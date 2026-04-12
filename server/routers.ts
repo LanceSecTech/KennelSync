@@ -23,7 +23,8 @@ import {
   CUSTOMER_ONLINE_PAYMENT_UNAVAILABLE,
   CUSTOMER_STRIPE_NOT_CONFIGURED,
 } from "../shared/paymentMessages";
-import { ownerFacingStripeConnectMessage } from "./stripeConnectErrors";
+import { encodeStripeOwnerConnectError } from "../shared/stripeConnectOwnerTrpc";
+import { isPlatformConnectTermsError, ownerFacingStripeConnectMessage } from "./stripeConnectErrors";
 
 const zManualPaymentMethod = z.enum(MANUAL_PAYMENT_METHODS as unknown as [string, ...string[]]);
 
@@ -1485,6 +1486,7 @@ export const appRouter = router({
         await db.updateBooking(booking.id, { paymentStatus: "paid" });
         return { success: true as const };
       }),
+    /** Customer booking Checkout: errors use CUSTOMER_* messages only — never `encodeStripeOwnerConnectError` (owner Connect is ownerProcedure-only). */
     createCheckoutSession: protectedProcedure.input(z.object({
       bookingId: z.number(),
       origin: z.string(),
@@ -3563,9 +3565,11 @@ export const appRouter = router({
           return { url };
         } catch (err) {
           console.error("[stripeConnect] createOnboardingLink failed:", err);
+          const kind = isPlatformConnectTermsError(err) ? "platform_connect_setup" : "generic";
+          const detail = kind === "platform_connect_setup" ? "" : ownerFacingStripeConnectMessage(err);
           throw new TRPCError({
             code: "PRECONDITION_FAILED",
-            message: ownerFacingStripeConnectMessage(err),
+            message: encodeStripeOwnerConnectError(kind, detail),
           });
         }
       }),
@@ -3588,9 +3592,11 @@ export const appRouter = router({
         return { synced: true as const };
       } catch (err) {
         console.error("[stripeConnect] syncFromStripe failed:", err);
+        const kind = isPlatformConnectTermsError(err) ? "platform_connect_setup" : "generic";
+        const detail = kind === "platform_connect_setup" ? "" : ownerFacingStripeConnectMessage(err);
         throw new TRPCError({
           code: "PRECONDITION_FAILED",
-          message: ownerFacingStripeConnectMessage(err),
+          message: encodeStripeOwnerConnectError(kind, detail),
         });
       }
     }),

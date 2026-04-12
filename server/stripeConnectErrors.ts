@@ -3,6 +3,7 @@
  * Never forward raw Stripe messages to the client.
  */
 
+/** @deprecated Prefer actionable UI in KennelStripeConnectCard; kept for generic error `detail` text. */
 export const OWNER_STRIPE_CONNECT_PLATFORM_SETUP_MESSAGE =
   "Online payouts are not ready yet. Please complete Stripe platform payout setup in the Stripe Dashboard (Connect → Settings) before connecting owner payout accounts. After your platform is configured, use “Link bank account with Stripe” below to try again.";
 
