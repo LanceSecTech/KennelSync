@@ -378,6 +378,15 @@ ALTER TABLE kennels ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMPTZ;
 CREATE INDEX IF NOT EXISTS idx_kennels_stripe_subscription_id ON kennels(stripe_subscription_id);
 CREATE INDEX IF NOT EXISTS idx_kennels_stripe_customer_id ON kennels(stripe_customer_id);
 
+-- Stripe Connect (customer booking payouts) — see MIGRATION_R33_kennel_stripe_connect.sql
+ALTER TABLE public.kennels ADD COLUMN IF NOT EXISTS stripe_connected_account_id TEXT;
+ALTER TABLE public.kennels ADD COLUMN IF NOT EXISTS stripe_connect_charges_enabled BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE public.kennels ADD COLUMN IF NOT EXISTS stripe_connect_payouts_enabled BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE public.kennels ADD COLUMN IF NOT EXISTS stripe_connect_details_submitted BOOLEAN NOT NULL DEFAULT FALSE;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_kennels_stripe_connected_account_id
+  ON public.kennels (stripe_connected_account_id)
+  WHERE stripe_connected_account_id IS NOT NULL AND trim(stripe_connected_account_id) <> '';
+
 -- ============================================
 -- 15. CUSTOMER-KENNEL ASSOCIATIONS TABLE
 -- ============================================

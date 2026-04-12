@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Building2, MapPin, Clock, Phone, Mail, Plus, Edit2, Trash2, DollarSign, Save, X, Check, DoorOpen, Syringe, Bath, Scissors } from "lucide-react";
+import { KennelStripeConnectCard } from "@/components/KennelStripeConnectCard";
 import RoomManagement from "./RoomManagement";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
@@ -138,6 +139,8 @@ export default function KennelProfile() {
               </Button>
             </CardContent>
           </Card>
+
+          {kennel ? <KennelStripeConnectCard kennelId={kennel.id} /> : null}
         </TabsContent>
 
         <TabsContent value="services" className="space-y-3 mt-3">

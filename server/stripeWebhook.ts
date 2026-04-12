@@ -126,6 +126,20 @@ export async function handleStripeWebhook(req: Request, res: Response) {
         break;
       }
 
+      case "account.updated": {
+        const acct = event.data.object as Stripe.Account;
+        if (acct.id) {
+          const { syncConnectAccountFromStripe } = await import("./stripeConnect");
+          try {
+            await syncConnectAccountFromStripe(acct.id);
+            console.log(`[Stripe webhook] Connect account synced acct=${acct.id}`);
+          } catch (e) {
+            console.warn(`[Stripe webhook] Connect sync skipped for ${acct.id}:`, e);
+          }
+        }
+        break;
+      }
+
       case "payment_intent.succeeded": {
         const paymentIntent = event.data.object as Stripe.PaymentIntent;
         console.log(`Payment succeeded: ${paymentIntent.id}`);

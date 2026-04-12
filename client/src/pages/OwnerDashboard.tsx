@@ -4,7 +4,7 @@ import { useKennel } from "@/contexts/KennelContext";
 import { accountGreetingFirstName } from "@/lib/accountDisplayName";
 import { Card, CardContent } from "@/components/ui/card";
 import { useLocation } from "wouter";
-import { DollarSign, CalendarDays, Users, TrendingUp, Clock, Building2, Bell } from "lucide-react";
+import { DollarSign, CalendarDays, Users, TrendingUp, Clock, Building2, Bell, Landmark, ChevronRight } from "lucide-react";
 import { OwnerSubscriptionTrialBanner } from "@/components/OwnerSubscriptionPromo";
 
 export default function OwnerDashboard() {
@@ -16,6 +16,10 @@ export default function OwnerDashboard() {
     { enabled: !!kennelId }
   );
   const { data: vaccineIssues } = trpc.alert.vaccineCompliance.useQuery(
+    { kennelId: kennelId! },
+    { enabled: !!kennelId }
+  );
+  const { data: connectStatus } = trpc.stripeConnect.status.useQuery(
     { kennelId: kennelId! },
     { enabled: !!kennelId }
   );
@@ -48,6 +52,25 @@ export default function OwnerDashboard() {
       </div>
 
       <OwnerSubscriptionTrialBanner kennelId={kennelId} />
+
+      {connectStatus?.stripeConfigured && !connectStatus.canAcceptBookingPayments ? (
+        <button
+          type="button"
+          onClick={() => setLocation("/settings?tab=payouts")}
+          className="w-full text-left rounded-xl border border-amber-200/90 bg-amber-50/80 shadow-sm px-4 py-3 flex items-center justify-between gap-3 hover:bg-amber-50 hover:shadow-md transition-[box-shadow,background-color] touch-manipulation"
+        >
+          <span className="flex items-center gap-2 min-w-0">
+            <Landmark className="h-5 w-5 text-amber-800 shrink-0" aria-hidden />
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold text-amber-950">Link bank for booking payouts</span>
+              <span className="block text-xs text-amber-900/85 mt-0.5">
+                Connect Stripe so customers can pay for stays online.
+              </span>
+            </span>
+          </span>
+          <ChevronRight className="h-5 w-5 text-amber-800 shrink-0" aria-hidden />
+        </button>
+      ) : null}
 
       {/* Revenue Cards */}
       <div className="grid grid-cols-2 gap-3">

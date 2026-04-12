@@ -149,6 +149,16 @@ export async function getKennelByStripeSubscriptionId(stripeSubscriptionId: stri
   return data;
 }
 
+export async function getKennelByStripeConnectedAccountId(connectedAccountId: string) {
+  const { data, error } = await supabase
+    .from('kennels')
+    .select('*')
+    .eq('stripe_connected_account_id', connectedAccountId)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
 // ============ SERVICES ============
 
 export async function getServicesByKennelId(kennelId: number) {

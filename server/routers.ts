@@ -1392,35 +1392,70 @@ export const appRouter = router({
       const amount = Math.round(parseFloat(String(booking.totalPrice ?? 0)) * 100);
       if (amount < 50) throw new TRPCError({ code: 'BAD_REQUEST', message: 'Minimum payment amount is $0.50' });
 
+      const kennelRow = (await db.getKennelById(booking.kennelId)) as Record<string, unknown>;
+      const {
+        bookingPaymentsRequireConnect,
+        connectApplicationFeeCents,
+        kennelCanReceiveBookingDestinations,
+      } = await import("./stripeConnect");
+      const destinationOk = kennelCanReceiveBookingDestinations(kennelRow);
+      if (bookingPaymentsRequireConnect() && !destinationOk) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message:
+            "This kennel has not finished Stripe Connect payment setup. The owner must connect a bank account in Kennel Profile before customers can pay online.",
+        });
+      }
+
       const base = String(process.env.STRIPE_CHECKOUT_APP_ORIGIN || input.origin).replace(/\/$/, '');
       const successUrl = `${base}/payment/success?session_id={CHECKOUT_SESSION_ID}`;
       const cancelUrl = `${base}/payment/cancel`;
 
-      const session = await stripe.checkout.sessions.create({
-        payment_method_types: ['card'],
-        mode: 'payment',
+      const connectedId =
+        (kennelRow.stripe_connected_account_id ?? kennelRow.stripeConnectedAccountId) != null
+          ? String(kennelRow.stripe_connected_account_id ?? kennelRow.stripeConnectedAccountId).trim()
+          : "";
+
+      const sessionParams: Parameters<typeof stripe.checkout.sessions.create>[0] = {
+        payment_method_types: ["card"],
+        mode: "payment",
         customer_email: ctx.user.email || undefined,
         client_reference_id: ctx.user.id,
         metadata: {
-          checkout_flow: 'booking',
+          checkout_flow: "booking",
           booking_id: String(input.bookingId),
           customer_id: ctx.user.id,
           kennel_id: String(booking.kennelId),
           user_id: ctx.user.id,
-          customer_email: ctx.user.email || '',
+          customer_email: ctx.user.email || "",
+          ...(destinationOk && connectedId
+            ? { stripe_connected_account_id: connectedId, connect_destination: "true" }
+            : {}),
         },
-        line_items: [{
-          price_data: {
-            currency: 'usd',
-            product_data: { name: `Kennel Stay #${input.bookingId}` },
-            unit_amount: amount,
+        line_items: [
+          {
+            price_data: {
+              currency: "usd",
+              product_data: { name: `Kennel Stay #${input.bookingId}` },
+              unit_amount: amount,
+            },
+            quantity: 1,
           },
-          quantity: 1,
-        }],
+        ],
         success_url: successUrl,
         cancel_url: cancelUrl,
         allow_promotion_codes: true,
-      });
+      };
+
+      if (destinationOk && connectedId) {
+        const fee = connectApplicationFeeCents(amount);
+        sessionParams.payment_intent_data = {
+          transfer_data: { destination: connectedId },
+          ...(fee > 0 ? { application_fee_amount: fee } : {}),
+        };
+      }
+
+      const session = await stripe.checkout.sessions.create(sessionParams);
 
       console.log(
         `[Stripe] booking checkout session created bookingId=${input.bookingId} userId=${ctx.user.id} sessionId=${session.id}`,
@@ -3271,6 +3306,8 @@ export const appRouter = router({
         !everHadTrial;
       const { stripe } = await import("./stripe");
       const { getOwnerSubscriptionPriceId } = await import("./stripeOwnerSubscription");
+      const { kennelCanReceiveBookingDestinations } = await import("./stripeConnect");
+      const connectRow = row;
       return {
         enforced,
         hasAccess,
@@ -3280,6 +3317,16 @@ export const appRouter = router({
         canStartAppTrial,
         stripeConfigured: Boolean(stripe),
         subscriptionPriceConfigured: Boolean(getOwnerSubscriptionPriceId()),
+        /** Customer booking Checkout can use Connect destination (vs platform-only legacy). */
+        bookingPaymentsReady: kennelCanReceiveBookingDestinations(connectRow),
+        stripeConnectedAccountId:
+          (connectRow.stripe_connected_account_id ?? connectRow.stripeConnectedAccountId ?? null) as string | null,
+        stripeConnectChargesEnabled: Boolean(
+          connectRow.stripe_connect_charges_enabled ?? connectRow.stripeConnectChargesEnabled,
+        ),
+        stripeConnectPayoutsEnabled: Boolean(
+          connectRow.stripe_connect_payouts_enabled ?? connectRow.stripeConnectPayoutsEnabled,
+        ),
       };
     }),
     createSubscriptionCheckout: ownerProcedure
@@ -3356,6 +3403,69 @@ export const appRouter = router({
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: msg || "Could not start trial" });
       }
       return { success: true as const, trialEndsAt: iso };
+    }),
+  }),
+
+  /** Stripe Connect: onboard kennel to receive customer booking payments (separate from owner SaaS subscription). */
+  stripeConnect: router({
+    status: ownerProcedure.input(z.object({ kennelId: z.number() })).query(async ({ ctx, input }) => {
+      await assertOwnerOwnsKennelId(ctx.user, input.kennelId);
+      const { stripe } = await import("./stripe");
+      const {
+        kennelCanReceiveBookingDestinations,
+        bookingPaymentsRequireConnect,
+        stripeConnectModuleAvailable,
+      } = await import("./stripeConnect");
+      const kennel = await db.getKennelById(input.kennelId);
+      const row = kennel as Record<string, unknown>;
+      const accountId =
+        (row.stripe_connected_account_id ?? row.stripeConnectedAccountId ?? null) as string | null;
+      const cleanId = accountId && String(accountId).trim() ? String(accountId).trim() : null;
+      return {
+        stripeConfigured: Boolean(stripe),
+        moduleAvailable: stripeConnectModuleAvailable(),
+        accountId: cleanId,
+        chargesEnabled: Boolean(row.stripe_connect_charges_enabled ?? row.stripeConnectChargesEnabled),
+        payoutsEnabled: Boolean(row.stripe_connect_payouts_enabled ?? row.stripeConnectPayoutsEnabled),
+        detailsSubmitted: Boolean(row.stripe_connect_details_submitted ?? row.stripeConnectDetailsSubmitted),
+        canAcceptBookingPayments: kennelCanReceiveBookingDestinations(row),
+        bookingsRequireConnect: bookingPaymentsRequireConnect(),
+      };
+    }),
+    createOnboardingLink: ownerProcedure
+      .input(z.object({ kennelId: z.number(), origin: z.string().min(1) }))
+      .mutation(async ({ ctx, input }) => {
+        await assertOwnerOwnsKennelId(ctx.user, input.kennelId);
+        const { stripe } = await import("./stripe");
+        if (!stripe) {
+          throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Stripe is not configured (STRIPE_SECRET_KEY)." });
+        }
+        const { createStripeConnectOnboardingLink } = await import("./stripeConnect");
+        const base = input.origin.replace(/\/$/, "");
+        const url = await createStripeConnectOnboardingLink({
+          kennelId: input.kennelId,
+          ownerEmail: ctx.user.email,
+          returnUrl: `${base}/settings?connect=return`,
+          refreshUrl: `${base}/settings?connect=refresh`,
+        });
+        return { url };
+      }),
+    /** Pull latest Connect flags from Stripe (e.g. after onboarding return URL). */
+    syncFromStripe: ownerProcedure.input(z.object({ kennelId: z.number() })).mutation(async ({ ctx, input }) => {
+      await assertOwnerOwnsKennelId(ctx.user, input.kennelId);
+      const { stripe } = await import("./stripe");
+      if (!stripe) {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Stripe is not configured." });
+      }
+      const kennel = await db.getKennelById(input.kennelId);
+      const row = kennel as Record<string, unknown>;
+      const id = row.stripe_connected_account_id ?? row.stripeConnectedAccountId;
+      if (!id || String(id).trim() === "") {
+        return { synced: false as const };
+      }
+      const { syncConnectAccountFromStripe } = await import("./stripeConnect");
+      await syncConnectAccountFromStripe(String(id).trim());
+      return { synced: true as const };
     }),
   }),
 });

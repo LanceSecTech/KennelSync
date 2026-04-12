@@ -42,6 +42,7 @@ import {
   vaxDocUrl,
 } from "@/lib/vaccinationUtils";
 import { OwnerSubscriptionSettingsCard } from "@/components/OwnerSubscriptionPromo";
+import { KennelStripeConnectCard } from "@/components/KennelStripeConnectCard";
 import { accountDisplayName } from "@/lib/accountDisplayName";
 
 export default function Settings() {
@@ -66,12 +67,21 @@ export default function Settings() {
   useEffect(() => {
     const search = typeof window !== "undefined" ? window.location.search : "";
     const tab = new URLSearchParams(search).get("tab");
+    let timeoutId: number | undefined;
     if (tab === "financials" && user?.role === "owner") {
       setFinancialsOpen(true);
     }
     if (tab === "owners-pets" && user?.role === "owner") {
       setOwnersPetsOpen(true);
     }
+    if (tab === "payouts" && user?.role === "owner") {
+      timeoutId = window.setTimeout(() => {
+        document.getElementById("stripe-connect-payouts")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 150);
+    }
+    return () => {
+      if (timeoutId !== undefined) window.clearTimeout(timeoutId);
+    };
   }, [loc, user?.role]);
 
   const openFinancials = () => {
@@ -388,6 +398,8 @@ export default function Settings() {
         )}
 
         {isOwner && activeKennelId != null && <OwnerSubscriptionSettingsCard kennelId={activeKennelId} />}
+
+        {isOwner && activeKennelId != null && <KennelStripeConnectCard kennelId={activeKennelId} />}
 
         {isOwner && (
           <Card className="border-0 shadow-sm bg-white">
