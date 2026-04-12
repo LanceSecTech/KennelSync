@@ -29,6 +29,7 @@ export function connectApplicationFeeCents(totalCents: number): number {
   return Math.min(fee, maxFee);
 }
 
+/** Shown in owner Connect UI; customer booking Checkout always requires a Connect-ready kennel (see payment.createCheckoutSession). */
 export function bookingPaymentsRequireConnect(): boolean {
   return String(process.env.STRIPE_CONNECT_REQUIRED_FOR_BOOKINGS || "")
     .trim()

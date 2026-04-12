@@ -17,6 +17,15 @@ import {
   kennelRowHasOwnerAppAccess,
   kennelShowTrialUpgradeBanner,
 } from "./subscriptionAccess";
+import { MANUAL_PAYMENT_METHODS } from "../shared/manualPayment";
+import {
+  CUSTOMER_CHECKOUT_START_FAILED,
+  CUSTOMER_ONLINE_PAYMENT_UNAVAILABLE,
+  CUSTOMER_STRIPE_NOT_CONFIGURED,
+} from "../shared/paymentMessages";
+import { ownerFacingStripeConnectMessage } from "./stripeConnectErrors";
+
+const zManualPaymentMethod = z.enum(MANUAL_PAYMENT_METHODS as unknown as [string, ...string[]]);
 
 async function loadBookingForAccess(bookingId: number) {
   try {
@@ -1069,6 +1078,8 @@ export const appRouter = router({
           discountId: z.number().nullable().optional(),
           discountNotes: z.string().optional(),
           paymentMode: z.enum(["saved_card", "manual"]).default("manual"),
+          /** Used when paymentMode is manual; defaults to other. Recorded on the payment row when total due is positive. */
+          manualPaymentMethod: zManualPaymentMethod.optional(),
         }),
       )
       .mutation(async ({ ctx, input }) => {
@@ -1135,6 +1146,28 @@ export const appRouter = router({
         }
 
         if (input.paymentMode === "manual") {
+          const method = input.manualPaymentMethod ?? "other";
+          if (finalTotal > 0) {
+            try {
+              await db.createManualPayment(
+                booking.id,
+                booking.customerId,
+                booking.kennelId,
+                finalTotal,
+                method,
+              );
+            } catch (e) {
+              const msg = e instanceof Error ? e.message : String(e);
+              if (msg.toLowerCase().includes("manual_payment_method") || msg.toLowerCase().includes("column")) {
+                throw new TRPCError({
+                  code: "PRECONDITION_FAILED",
+                  message:
+                    "Database is missing the manual payment column. Run MIGRATION_R34_payments_manual_payment_method.sql in Supabase, then try again.",
+                });
+              }
+              throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Could not save manual payment record." });
+            }
+          }
           await db.updateBooking(booking.id, { paymentStatus: "paid" });
         } else if (input.paymentMode === "saved_card") {
           if (finalTotal <= 0) {
@@ -1346,6 +1379,7 @@ export const appRouter = router({
         status: p.status,
         type: p.type || 'payment',
         stripePaymentId: p.stripe_payment_id,
+        manualPaymentMethod: p.manual_payment_method ?? null,
         paidAt: p.paid_at || p.created_at,
         createdAt: p.created_at,
       }));
@@ -1375,13 +1409,91 @@ export const appRouter = router({
 
       return { balanceDue, upcomingCharges, paidThisMonth };
     }),
+    /** Whether this customer can use in-app Stripe Checkout for a booking at this kennel (Connect-ready + Stripe configured). */
+    customerKennelOnlinePay: protectedProcedure
+      .input(z.object({ kennelId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+        const { stripe } = await import("./stripe");
+        const kennel = await db.getKennelById(input.kennelId);
+        if (!kennel) {
+          return { onlinePayAvailable: false as const, message: CUSTOMER_ONLINE_PAYMENT_UNAVAILABLE };
+        }
+        const { kennelCanReceiveBookingDestinations } = await import("./stripeConnect");
+        const destinationOk = kennelCanReceiveBookingDestinations(kennel as Record<string, unknown>);
+        const onlinePayAvailable = Boolean(stripe) && destinationOk;
+        return {
+          onlinePayAvailable,
+          message: onlinePayAvailable ? undefined : CUSTOMER_ONLINE_PAYMENT_UNAVAILABLE,
+        };
+      }),
+    /** Same gate as createCheckoutSession, for a specific booking (must be the customer). */
+    bookingOnlinePayEligibility: protectedProcedure
+      .input(z.object({ bookingId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+        const booking = await db.getBookingById(input.bookingId);
+        if (!booking || booking.customerId !== ctx.user.id) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Booking not found" });
+        }
+        const { stripe } = await import("./stripe");
+        const kennelRow = (await db.getKennelById(booking.kennelId)) as Record<string, unknown>;
+        const { kennelCanReceiveBookingDestinations } = await import("./stripeConnect");
+        const destinationOk = kennelCanReceiveBookingDestinations(kennelRow);
+        const amount = Math.round(parseFloat(String(booking.totalPrice ?? 0)) * 100);
+        const onlinePayAvailable = Boolean(stripe) && destinationOk && amount >= 50;
+        let message: string | undefined;
+        if (!stripe) message = CUSTOMER_STRIPE_NOT_CONFIGURED;
+        else if (!destinationOk) message = CUSTOMER_ONLINE_PAYMENT_UNAVAILABLE;
+        else if (amount < 50) message = "This balance is too small to pay online.";
+        return { onlinePayAvailable, message };
+      }),
+    /** Staff: record full stay total as paid offline (no Stripe). See Checkout for itemized checkout. */
+    recordManualPayment: employeeProcedure
+      .input(
+        z.object({
+          bookingId: z.number(),
+          manualPaymentMethod: zManualPaymentMethod,
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        const booking = await loadBookingForAccess(input.bookingId);
+        await assertStaffMayChangeBookingStatus(ctx.user!, booking);
+        if (booking.status === "cancelled") {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Cancelled bookings cannot be marked paid." });
+        }
+        if (booking.paymentStatus === "paid") {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "This booking is already marked paid." });
+        }
+        const amount = Number(booking.totalPrice || 0);
+        if (amount <= 0) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "There is no amount to record for this booking." });
+        }
+        try {
+          await db.createManualPayment(booking.id, booking.customerId, booking.kennelId, amount, input.manualPaymentMethod);
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          if (msg.toLowerCase().includes("manual_payment_method") || msg.toLowerCase().includes("column")) {
+            throw new TRPCError({
+              code: "PRECONDITION_FAILED",
+              message:
+                "Database is missing the manual payment column. Run MIGRATION_R34_payments_manual_payment_method.sql in Supabase, then try again.",
+            });
+          }
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Could not save payment record." });
+        }
+        await db.updateBooking(booking.id, { paymentStatus: "paid" });
+        return { success: true as const };
+      }),
     createCheckoutSession: protectedProcedure.input(z.object({
       bookingId: z.number(),
       origin: z.string(),
     })).mutation(async ({ ctx, input }) => {
       if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
       const { stripe } = await import('./stripe');
-      if (!stripe) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Stripe is not configured' });
+      if (!stripe) {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: CUSTOMER_STRIPE_NOT_CONFIGURED });
+      }
 
       const booking = await db.getBookingById(input.bookingId);
       if (!booking) throw new TRPCError({ code: 'NOT_FOUND', message: 'Booking not found' });
@@ -1393,17 +1505,12 @@ export const appRouter = router({
       if (amount < 50) throw new TRPCError({ code: 'BAD_REQUEST', message: 'Minimum payment amount is $0.50' });
 
       const kennelRow = (await db.getKennelById(booking.kennelId)) as Record<string, unknown>;
-      const {
-        bookingPaymentsRequireConnect,
-        connectApplicationFeeCents,
-        kennelCanReceiveBookingDestinations,
-      } = await import("./stripeConnect");
+      const { connectApplicationFeeCents, kennelCanReceiveBookingDestinations } = await import("./stripeConnect");
       const destinationOk = kennelCanReceiveBookingDestinations(kennelRow);
-      if (bookingPaymentsRequireConnect() && !destinationOk) {
+      if (!destinationOk) {
         throw new TRPCError({
           code: "PRECONDITION_FAILED",
-          message:
-            "This kennel has not finished Stripe Connect payment setup. The owner must connect a bank account in Kennel Profile before customers can pay online.",
+          message: CUSTOMER_ONLINE_PAYMENT_UNAVAILABLE,
         });
       }
 
@@ -1415,6 +1522,10 @@ export const appRouter = router({
         (kennelRow.stripe_connected_account_id ?? kennelRow.stripeConnectedAccountId) != null
           ? String(kennelRow.stripe_connected_account_id ?? kennelRow.stripeConnectedAccountId).trim()
           : "";
+
+      if (!connectedId) {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: CUSTOMER_ONLINE_PAYMENT_UNAVAILABLE });
+      }
 
       const sessionParams: Parameters<typeof stripe.checkout.sessions.create>[0] = {
         payment_method_types: ["card"],
@@ -1428,9 +1539,8 @@ export const appRouter = router({
           kennel_id: String(booking.kennelId),
           user_id: ctx.user.id,
           customer_email: ctx.user.email || "",
-          ...(destinationOk && connectedId
-            ? { stripe_connected_account_id: connectedId, connect_destination: "true" }
-            : {}),
+          stripe_connected_account_id: connectedId,
+          connect_destination: "true",
         },
         line_items: [
           {
@@ -1447,21 +1557,22 @@ export const appRouter = router({
         allow_promotion_codes: true,
       };
 
-      if (destinationOk && connectedId) {
-        const fee = connectApplicationFeeCents(amount);
-        sessionParams.payment_intent_data = {
-          transfer_data: { destination: connectedId },
-          ...(fee > 0 ? { application_fee_amount: fee } : {}),
-        };
+      const fee = connectApplicationFeeCents(amount);
+      sessionParams.payment_intent_data = {
+        transfer_data: { destination: connectedId },
+        ...(fee > 0 ? { application_fee_amount: fee } : {}),
+      };
+
+      try {
+        const session = await stripe.checkout.sessions.create(sessionParams);
+        console.log(
+          `[Stripe] booking checkout session created bookingId=${input.bookingId} userId=${ctx.user.id} sessionId=${session.id}`,
+        );
+        return { url: session.url };
+      } catch (err) {
+        console.error("[Stripe] booking checkout.session.create failed:", err);
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: CUSTOMER_CHECKOUT_START_FAILED });
       }
-
-      const session = await stripe.checkout.sessions.create(sessionParams);
-
-      console.log(
-        `[Stripe] booking checkout session created bookingId=${input.bookingId} userId=${ctx.user.id} sessionId=${session.id}`,
-      );
-
-      return { url: session.url };
     }),
     create: protectedProcedure.input(z.object({
       bookingId: z.number(),
@@ -3442,13 +3553,21 @@ export const appRouter = router({
         }
         const { createStripeConnectOnboardingLink } = await import("./stripeConnect");
         const base = input.origin.replace(/\/$/, "");
-        const url = await createStripeConnectOnboardingLink({
-          kennelId: input.kennelId,
-          ownerEmail: ctx.user.email,
-          returnUrl: `${base}/settings?connect=return`,
-          refreshUrl: `${base}/settings?connect=refresh`,
-        });
-        return { url };
+        try {
+          const url = await createStripeConnectOnboardingLink({
+            kennelId: input.kennelId,
+            ownerEmail: ctx.user.email,
+            returnUrl: `${base}/settings?connect=return`,
+            refreshUrl: `${base}/settings?connect=refresh`,
+          });
+          return { url };
+        } catch (err) {
+          console.error("[stripeConnect] createOnboardingLink failed:", err);
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message: ownerFacingStripeConnectMessage(err),
+          });
+        }
       }),
     /** Pull latest Connect flags from Stripe (e.g. after onboarding return URL). */
     syncFromStripe: ownerProcedure.input(z.object({ kennelId: z.number() })).mutation(async ({ ctx, input }) => {
@@ -3464,8 +3583,16 @@ export const appRouter = router({
         return { synced: false as const };
       }
       const { syncConnectAccountFromStripe } = await import("./stripeConnect");
-      await syncConnectAccountFromStripe(String(id).trim());
-      return { synced: true as const };
+      try {
+        await syncConnectAccountFromStripe(String(id).trim());
+        return { synced: true as const };
+      } catch (err) {
+        console.error("[stripeConnect] syncFromStripe failed:", err);
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: ownerFacingStripeConnectMessage(err),
+        });
+      }
     }),
   }),
 });

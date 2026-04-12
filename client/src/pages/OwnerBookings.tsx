@@ -28,8 +28,9 @@ import {
 } from "@/components/ui/select";
 import {
   CalendarDays, CheckCircle2, XCircle, Pencil, AlertTriangle, ShieldAlert, ShieldCheck,
-  LayoutList, CalendarRange, Calendar, ChevronLeft, ChevronRight, DoorOpen,
+  LayoutList, CalendarRange, Calendar, ChevronLeft, ChevronRight, DoorOpen, Wallet,
 } from "lucide-react";
+import { RecordManualPaymentDialog } from "@/components/RecordManualPaymentDialog";
 import { useState, useMemo, useEffect } from "react";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
@@ -116,6 +117,7 @@ export default function OwnerBookings() {
   const [editBooking, setEditBooking] = useState<any>(null);
   const [cancelTarget, setCancelTarget] = useState<any>(null);
   const [planningBooking, setPlanningBooking] = useState<any>(null);
+  const [recordPayTarget, setRecordPayTarget] = useState<any>(null);
   const utils = trpc.useUtils();
 
   const { data: editBookingAddOns, isLoading: editAddOnsLoading } = trpc.addOn.byBooking.useQuery(
@@ -856,6 +858,19 @@ export default function OwnerBookings() {
               </div>
 
               <div className="flex flex-wrap gap-1.5 sm:gap-2 mt-2.5 sm:mt-3">
+                {booking.status !== "cancelled" &&
+                  booking.paymentStatus !== "paid" &&
+                  parseFloat(String(booking.totalPrice || 0)) > 0 && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      className="h-9 min-h-9 sm:h-7 sm:min-h-0 text-xs gap-1"
+                      onClick={() => setRecordPayTarget(booking)}
+                    >
+                      <Wallet className="h-3 w-3" /> Record offline payment
+                    </Button>
+                  )}
                 {booking.status === "pending" && (
                   <>
                     <Button
@@ -980,6 +995,15 @@ export default function OwnerBookings() {
           kennelId={kennelId}
           open={!!planningBooking}
           onClose={() => setPlanningBooking(null)}
+        />
+      )}
+
+      {kennelId != null && (
+        <RecordManualPaymentDialog
+          open={!!recordPayTarget}
+          onOpenChange={(open) => !open && setRecordPayTarget(null)}
+          booking={recordPayTarget}
+          kennelId={kennelId}
         />
       )}
 

@@ -20,6 +20,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { CheckoutStayDialog } from "@/components/CheckoutStayDialog";
+import { RecordManualPaymentDialog } from "@/components/RecordManualPaymentDialog";
 import {
   ClipboardCheck,
   LogIn,
@@ -31,6 +32,7 @@ import {
   ShieldAlert,
   ShieldCheck,
   Bath,
+  Wallet,
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatDate, todayString, toDateString } from "@/lib/dateUtils";
@@ -88,6 +90,7 @@ export default function CheckInOut() {
   } | null>(null);
   // Track checkout add-on dialog
   const [checkoutBookingId, setCheckoutBookingId] = useState<number | null>(null);
+  const [recordPayBooking, setRecordPayBooking] = useState<any | null>(null);
 
   // Build missing info lookup by bookingId
   const missingInfoMap = new Map<
@@ -413,6 +416,17 @@ export default function CheckInOut() {
                     </div>
                   )}
 
+                  {booking.paymentStatus !== "paid" &&
+                    parseFloat(String(booking.totalPrice || 0)) > 0 && (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="w-full h-9 text-xs gap-1.5"
+                        onClick={() => setRecordPayBooking(booking)}
+                      >
+                        <Wallet className="h-3.5 w-3.5" /> Record offline payment
+                      </Button>
+                    )}
                   <Button
                     className={`w-full h-10 font-semibold gap-1.5 ${issues ? "bg-amber-600 hover:bg-amber-700" : ""}`}
                     onClick={() => handleCheckIn(booking.id)}
@@ -499,6 +513,17 @@ export default function CheckInOut() {
                     </div>
                   )}
 
+                  {booking.paymentStatus !== "paid" &&
+                    parseFloat(String(booking.totalPrice || 0)) > 0 && (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="w-full h-9 text-xs gap-1.5"
+                        onClick={() => setRecordPayBooking(booking)}
+                      >
+                        <Wallet className="h-3.5 w-3.5" /> Record offline payment
+                      </Button>
+                    )}
                   <Button
                     variant="outline"
                     className="w-full h-10 font-semibold gap-1.5"
@@ -656,6 +681,16 @@ export default function CheckInOut() {
           booking={checkoutBooking}
           dogLabel={checkoutBooking ? getBookingDogLabel(checkoutBooking) : ""}
           onCompleted={refreshRoomsAndBookings}
+        />
+      )}
+
+      {kennelId != null && (
+        <RecordManualPaymentDialog
+          open={recordPayBooking != null}
+          onOpenChange={(open) => !open && setRecordPayBooking(null)}
+          booking={recordPayBooking}
+          kennelId={kennelId}
+          onSuccess={refreshRoomsAndBookings}
         />
       )}
     </div>

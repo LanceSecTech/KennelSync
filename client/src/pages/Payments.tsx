@@ -1,7 +1,7 @@
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { CreditCard, DollarSign, Receipt, Clock, CheckCircle2, ExternalLink, Loader2 } from "lucide-react";
+import { CreditCard, Receipt, Clock, CheckCircle2 } from "lucide-react";
+import { CustomerBookingPayButton } from "@/components/CustomerBookingPayButton";
 import { toast } from "sonner";
 import { formatDate, parseLocalDate } from "@/lib/dateUtils";
 import { useEffect } from "react";
@@ -15,15 +15,16 @@ export default function Payments() {
   const utils = trpc.useUtils();
   const search = useSearch();
 
-  const createCheckout = trpc.payment.createCheckoutSession.useMutation({
-    onSuccess: (data) => {
-      if (data.url) {
-        toast.info("Redirecting to Stripe checkout...");
-        window.location.assign(data.url);
-      }
-    },
-    onError: (err) => toast.error(err.message || "Failed to create checkout session"),
-  });
+  const unpaidBookings =
+    bookings?.filter((b) => {
+      if (b.status === "cancelled") return false;
+      return b.paymentStatus === "unpaid" || b.paymentStatus === "partial";
+    }) || [];
+  const firstUnpaidId = unpaidBookings[0]?.id;
+  const { data: firstUnpaidEligibility } = trpc.payment.bookingOnlinePayEligibility.useQuery(
+    { bookingId: firstUnpaidId! },
+    { enabled: !!firstUnpaidId },
+  );
 
   // Handle payment success/cancel URL params
   useEffect(() => {
@@ -52,19 +53,6 @@ export default function Payments() {
 
   const summary = balanceSummary || { balanceDue: 0, upcomingCharges: 0, paidThisMonth: 0 };
 
-  // Get unpaid bookings for "Pay All" button
-  const unpaidBookings = bookings?.filter(b => {
-    if (b.status === "cancelled") return false;
-    return b.paymentStatus === 'unpaid' || b.paymentStatus === 'partial';
-  }) || [];
-
-  const handlePayBooking = (bookingId: number) => {
-    createCheckout.mutate({
-      bookingId,
-      origin: window.location.origin,
-    });
-  };
-
   return (
     <div className="p-4 space-y-4">
       <h1 className="text-xl font-bold">Payments</h1>
@@ -86,23 +74,17 @@ export default function Payments() {
               <p className="text-[10px] text-muted-foreground">Paid This Month</p>
             </div>
           </div>
-          {summary.balanceDue > 0 && unpaidBookings.length > 0 && (
-            <Button
-              className="w-full mt-3 h-10 font-semibold"
-              disabled={createCheckout.isPending}
-              onClick={() => {
-                // Pay the first unpaid booking
-                const firstUnpaid = unpaidBookings[0];
-                if (firstUnpaid) handlePayBooking(firstUnpaid.id);
-              }}
-            >
-              {createCheckout.isPending ? (
-                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+          {summary.balanceDue > 0 && unpaidBookings.length > 0 && firstUnpaidId != null && (
+            <div className="w-full mt-3 space-y-2">
+              {firstUnpaidEligibility?.onlinePayAvailable ? (
+                <CustomerBookingPayButton bookingId={firstUnpaidId} className="w-full h-10 font-semibold" />
               ) : (
-                <DollarSign className="h-4 w-4 mr-1" />
+                <p className="text-xs text-muted-foreground text-center leading-relaxed px-1">
+                  {firstUnpaidEligibility?.message ??
+                    "Online payment is not available for this kennel yet. Payment will be collected directly by the kennel."}
+                </p>
               )}
-              Pay Now
-            </Button>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -143,24 +125,11 @@ export default function Payments() {
                         <CheckCircle2 className="h-3 w-3" /> Paid
                       </span>
                     ) : (
-                      <div className="flex items-center gap-1">
+                      <div className="flex flex-col items-end gap-1 max-w-[min(100%,220px)]">
                         <span className="text-[10px] text-amber-600 font-medium flex items-center gap-0.5">
                           <Clock className="h-3 w-3" /> {booking.paymentStatus === 'partial' ? 'Partial' : 'Unpaid'}
                         </span>
-                        <Button
-                          size="sm"
-                          className="h-6 text-[10px] px-2"
-                          disabled={createCheckout.isPending}
-                          onClick={() => handlePayBooking(booking.id)}
-                        >
-                          {createCheckout.isPending ? (
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                          ) : (
-                            <>
-                              <ExternalLink className="h-3 w-3 mr-0.5" /> Pay
-                            </>
-                          )}
-                        </Button>
+                        <CustomerBookingPayButton bookingId={booking.id} className="h-6 text-[10px] px-2" />
                       </div>
                     )}
                   </div>

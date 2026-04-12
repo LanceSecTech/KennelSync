@@ -24,6 +24,7 @@ export function KennelStripeConnectCard({ kennelId }: { kennelId: number }) {
       void utils.stripeConnect.status.invalidate({ kennelId });
       void utils.ownerBilling.access.invalidate({ kennelId });
     },
+    onError: (e) => toast.error(e.message || "Could not sync payout status from Stripe."),
   });
 
   useEffect(() => {

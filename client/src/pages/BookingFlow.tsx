@@ -8,6 +8,7 @@ import { useLocation } from "wouter";
 import { ArrowLeft, ArrowRight, Dog, Calendar, CheckCircle2, Sparkles, Home, Sun, CreditCard, Clock, Plus } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
 import { toast } from "sonner";
+import { CUSTOMER_ONLINE_PAYMENT_UNAVAILABLE } from "@shared/paymentMessages";
 
 type Step = "dogs" | "service" | "dates" | "addons" | "review";
 
@@ -51,12 +52,25 @@ export default function BookingFlow() {
     { enabled: !!selectedKennelId }
   );
 
+  const { data: onlinePay } = trpc.payment.customerKennelOnlinePay.useQuery(
+    { kennelId: selectedKennelId! },
+    { enabled: !!selectedKennelId }
+  );
+
+  useEffect(() => {
+    if (onlinePay && !onlinePay.onlinePayAvailable && paymentOption === "pay_now") {
+      setPaymentOption("pay_later");
+    }
+  }, [onlinePay, paymentOption]);
+
   const selectedService = services?.find(s => s.id === selectedServiceId);
+
+  const payNowAllowed = onlinePay?.onlinePayAvailable === true;
 
   const createCheckout = trpc.payment.createCheckoutSession.useMutation({
     onSuccess: (data) => {
       if (data.url) {
-        toast.info("Redirecting to Stripe checkout...");
+        toast.info("Redirecting to secure checkout…");
         window.location.assign(data.url);
       }
     },
@@ -67,7 +81,7 @@ export default function BookingFlow() {
     onSuccess: (data) => {
       utils.booking.myBookings.invalidate();
       utils.stats.customerDashboard.invalidate();
-      if (paymentOption === 'pay_now' && data.id) {
+      if (paymentOption === "pay_now" && payNowAllowed && data.id) {
         createCheckout.mutate({ bookingId: data.id, origin: window.location.origin });
       } else {
         toast.success("Booking submitted!");
@@ -429,16 +443,23 @@ export default function BookingFlow() {
           {/* Payment Option */}
           <div className="space-y-2">
             <p className="text-sm font-medium">Payment Option</p>
+            {!payNowAllowed && onlinePay != null ? (
+              <p className="text-xs text-muted-foreground leading-relaxed rounded-lg border border-muted bg-muted/20 px-3 py-2">
+                {onlinePay.message ?? CUSTOMER_ONLINE_PAYMENT_UNAVAILABLE}
+              </p>
+            ) : null}
             <div className="grid grid-cols-2 gap-3">
               <Card
-                className={`cursor-pointer transition-all border-2 ${paymentOption === "pay_now" ? "border-primary bg-primary/5" : "border-transparent bg-white shadow-sm"}`}
-                onClick={() => setPaymentOption("pay_now")}
+                className={`transition-all border-2 ${
+                  !payNowAllowed ? "opacity-50 pointer-events-none" : "cursor-pointer"
+                } ${paymentOption === "pay_now" ? "border-primary bg-primary/5" : "border-transparent bg-white shadow-sm"}`}
+                onClick={() => payNowAllowed && setPaymentOption("pay_now")}
               >
                 <CardContent className="p-3 flex flex-col items-center gap-2 text-center">
                   <CreditCard className={`h-6 w-6 ${paymentOption === "pay_now" ? "text-primary" : "text-muted-foreground"}`} />
                   <div>
                     <p className="text-sm font-medium">Pay Now</p>
-                    <p className="text-[10px] text-muted-foreground">Pay the full amount today</p>
+                    <p className="text-[10px] text-muted-foreground">Pay online after booking</p>
                   </div>
                 </CardContent>
               </Card>
@@ -476,7 +497,11 @@ export default function BookingFlow() {
             disabled={createBooking.isPending}
             className="flex-1 h-12 text-base font-semibold gap-2"
           >
-            {(createBooking.isPending || createCheckout.isPending) ? "Processing..." : (paymentOption === "pay_now" ? "Pay & Submit" : "Submit Booking")}
+            {(createBooking.isPending || createCheckout.isPending)
+              ? "Processing..."
+              : paymentOption === "pay_now" && payNowAllowed
+                ? "Pay & Submit"
+                : "Submit Booking"}
             <CheckCircle2 className="h-4 w-4" />
           </Button>
         )}

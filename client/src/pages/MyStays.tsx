@@ -8,7 +8,8 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose,
 } from "@/components/ui/dialog";
 import { useLocation } from "wouter";
-import { CalendarDays, Pencil, Dog, ExternalLink, Loader2, CreditCard } from "lucide-react";
+import { CalendarDays, Pencil, Dog, CreditCard } from "lucide-react";
+import { CustomerBookingPayButton } from "@/components/CustomerBookingPayButton";
 import { useState, useMemo, useEffect } from "react";
 import { toast } from "sonner";
 import { formatDate, toDateString, todayString } from "@/lib/dateUtils";
@@ -27,15 +28,6 @@ const statusColors: Record<string, string> = {
 export default function MyStays() {
   const { data: bookings, isLoading } = trpc.booking.myBookings.useQuery();
   const [filter, setFilter] = useState<FilterType>("upcoming");
-  const createCheckout = trpc.payment.createCheckoutSession.useMutation({
-    onSuccess: (data) => {
-      if (data.url) {
-        toast.info("Redirecting to Stripe checkout...");
-        window.location.assign(data.url);
-      }
-    },
-    onError: (err) => toast.error(err.message || "Failed to create checkout"),
-  });
   const [, setLocation] = useLocation();
   const utils = trpc.useUtils();
   const [editBooking, setEditBooking] = useState<any>(null);
@@ -191,15 +183,7 @@ export default function MyStays() {
                     Cancel
                   </Button>
                   {booking.paymentStatus !== 'paid' && parseFloat(String(booking.totalPrice || '0')) > 0 && (
-                    <Button
-                      size="sm"
-                      className="h-7 text-xs gap-1"
-                      disabled={createCheckout.isPending}
-                      onClick={() => createCheckout.mutate({ bookingId: booking.id, origin: window.location.origin })}
-                    >
-                      {createCheckout.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <ExternalLink className="h-3 w-3" />}
-                      Pay Now
-                    </Button>
+                    <CustomerBookingPayButton bookingId={booking.id} />
                   )}
                 </div>
               )}

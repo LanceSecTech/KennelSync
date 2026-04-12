@@ -855,6 +855,27 @@ export async function createPayment(bookingId: number, customerId: string, kenne
   return data;
 }
 
+/** Offline / in-person payment recorded by staff (no Stripe charge). Requires `manual_payment_method` column — see MIGRATION_R34. */
+export async function createManualPayment(
+  bookingId: number,
+  customerId: string,
+  kennelId: number,
+  amount: number,
+  manualPaymentMethod: string,
+) {
+  const row: Record<string, unknown> = {
+    booking_id: bookingId,
+    customer_id: customerId,
+    kennel_id: kennelId,
+    amount,
+    status: "succeeded",
+    manual_payment_method: manualPaymentMethod,
+  };
+  const { data, error } = await supabase.from("payments").insert([row]).select().single();
+  if (error) throw error;
+  return data;
+}
+
 // ============ ALERTS ============
 
 export type ClientAlertRow = {

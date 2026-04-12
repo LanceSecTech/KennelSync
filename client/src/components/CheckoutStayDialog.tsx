@@ -21,6 +21,11 @@ import {
 import { Bath, CreditCard, LogOut, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/dateUtils";
+import {
+  MANUAL_PAYMENT_METHODS,
+  MANUAL_PAYMENT_LABELS,
+  type ManualPaymentMethod,
+} from "@shared/manualPayment";
 
 export type CheckoutStayBooking = {
   id: number;
@@ -57,6 +62,7 @@ export function CheckoutStayDialog({
   const [selectedDiscountId, setSelectedDiscountId] = useState<string>("none");
   const [discountNotes, setDiscountNotes] = useState("");
   const [paymentMode, setPaymentMode] = useState<"manual" | "saved_card">("manual");
+  const [manualPaymentMethod, setManualPaymentMethod] = useState<ManualPaymentMethod>("cash");
 
   const { data: availableAddOns } = trpc.addOn.activeByKennel.useQuery(
     { kennelId },
@@ -78,6 +84,7 @@ export function CheckoutStayDialog({
     setSelectedDiscountId("none");
     setDiscountNotes("");
     setPaymentMode("manual");
+    setManualPaymentMethod("cash");
   }, [open, bookingId]);
 
   const selectedAddOnIds = useMemo(
@@ -96,8 +103,14 @@ export function CheckoutStayDialog({
   );
 
   const finalizeCheckout = trpc.booking.checkoutFinalize.useMutation({
-    onSuccess: (res) => {
-      toast.success(res.paymentCharged ? "Checked out and card charged." : "Checked out — marked paid.");
+    onSuccess: (res, vars) => {
+      if (res.paymentCharged) {
+        toast.success("Checked out and card charged.");
+      } else {
+        const method = (vars.manualPaymentMethod ?? "other") as ManualPaymentMethod;
+        const label = vars.paymentMode === "manual" ? MANUAL_PAYMENT_LABELS[method] : "offline";
+        toast.success(`Checked out — marked paid (${label}).`);
+      }
       onOpenChange(false);
       utils.booking.byKennel.invalidate();
       utils.booking.todayTasks.invalidate();
@@ -137,6 +150,7 @@ export function CheckoutStayDialog({
       discountId: selectedDiscountId !== "none" ? parseInt(selectedDiscountId, 10) : null,
       discountNotes: discountNotes || undefined,
       paymentMode,
+      manualPaymentMethod: paymentMode === "manual" ? manualPaymentMethod : undefined,
     });
   };
 
@@ -264,6 +278,23 @@ export function CheckoutStayDialog({
                   </SelectItem>
                 </SelectContent>
               </Select>
+              {paymentMode === "manual" && (
+                <Select
+                  value={manualPaymentMethod}
+                  onValueChange={(v) => setManualPaymentMethod(v as ManualPaymentMethod)}
+                >
+                  <SelectTrigger className="h-9 text-xs">
+                    <SelectValue placeholder="How was it paid?" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MANUAL_PAYMENT_METHODS.map((m) => (
+                      <SelectItem key={m} value={m}>
+                        {MANUAL_PAYMENT_LABELS[m]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
               {!stripeOk && (
                 <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-md p-2 flex gap-1.5">
                   <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
