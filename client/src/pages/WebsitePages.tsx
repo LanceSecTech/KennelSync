@@ -13,11 +13,65 @@ import {
   MARKETING_HOME_GLANCE_SLIDES,
   MARKETING_HOME_HERO_SLIDES,
 } from "@/components/MarketingScreenshotSlideshow";
+import { getTrpcDebugInfo, type TrpcDebugInfo } from "@/lib/apiBase";
+import { isNativeAppClient } from "@/lib/capacitorPlatform";
 
 function getAuthModeFromUrl(): "login" | "signup" {
   if (typeof window === "undefined") return "login";
   const mode = new URLSearchParams(window.location.search).get("mode");
   return mode === "signup" ? "signup" : "login";
+}
+
+/** Temporary diagnostics for Capacitor login / tRPC wiring (remove when stable). */
+function NativeLoginApiDebugPanel({
+  authMeError,
+}: {
+  authMeError: { message?: string } | null;
+}) {
+  const [info, setInfo] = useState<TrpcDebugInfo | null>(null);
+  useEffect(() => {
+    if (!isNativeAppClient()) return;
+    setInfo(getTrpcDebugInfo());
+  }, []);
+
+  if (!isNativeAppClient() || !info) return null;
+
+  return (
+    <div
+      className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-left text-[11px] leading-snug text-amber-950 shadow-sm"
+      data-testid="native-login-api-debug"
+    >
+      <p className="font-semibold text-amber-900">API debug (native)</p>
+      <ul className="mt-2 space-y-1 font-mono break-all">
+        <li>
+          <span className="text-amber-800">platform:</span> {info.capacitorPlatform}
+        </li>
+        <li>
+          <span className="text-amber-800">VITE_API_URL (build):</span>{" "}
+          {info.viteApiUrlEnv.trim() ? info.viteApiUrlEnv : "(empty)"}
+        </li>
+        <li>
+          <span className="text-amber-800">resolved API base:</span>{" "}
+          {info.resolvedApiBase.trim() ? info.resolvedApiBase : "(empty → relative tRPC)"}
+        </li>
+        <li>
+          <span className="text-amber-800">tRPC HTTP URL:</span> {info.trpcHttpUrl}
+        </li>
+        <li>
+          <span className="text-amber-800">WebView origin:</span> {info.windowOrigin || "—"}
+        </li>
+        <li>
+          <span className="text-amber-800">if relative, resolves to:</span>{" "}
+          {info.relativeTrpcWouldResolveTo || "—"}
+        </li>
+      </ul>
+      {authMeError?.message ? (
+        <p className="mt-2 border-t border-amber-200 pt-2 text-rose-700">
+          <span className="font-semibold">auth.me / tRPC:</span> {authMeError.message}
+        </p>
+      ) : null}
+    </div>
+  );
 }
 
 export function WebsiteHome() {
@@ -191,7 +245,7 @@ export function WebsiteAuth() {
   const [info, setInfo] = useState("");
   const [busy, setBusy] = useState(false);
   const [forceShowForm, setForceShowForm] = useState(false);
-  const { user, loading, signIn, signUp, logout } = useAuth();
+  const { user, loading, signIn, signUp, logout, error: authProbeError } = useAuth();
   const [location, setLocation] = useLocation();
 
   useEffect(() => {
@@ -235,6 +289,7 @@ export function WebsiteAuth() {
         <CardTitle>{isSignUp ? "Create account" : "Sign in"}</CardTitle>
       </CardHeader>
       <CardContent>
+        <NativeLoginApiDebugPanel authMeError={authProbeError} />
         {loading ? (
           <div className="space-y-2 py-3">
             <p className="text-sm text-slate-600">Checking session...</p>

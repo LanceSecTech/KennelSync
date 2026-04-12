@@ -20,6 +20,17 @@ process.on("unhandledRejection", (err) => {
 /** Always allowed in production when NODE_ENV is production (Vercel frontend). */
 const PRODUCTION_DEFAULT_ORIGIN = "https://kennelsync.vercel.app";
 
+/** WKWebView / Capacitor file origins — not the same as browser localhost. */
+function isCapacitorOrHybridOrigin(origin: string): boolean {
+  const o = String(origin).trim();
+  return (
+    o === "capacitor://localhost" ||
+    o === "ionic://localhost" ||
+    o === "http://localhost" ||
+    o === "https://localhost"
+  );
+}
+
 /** Merge CORS_ORIGINS and ALLOWED_ORIGINS (both optional, comma-separated). */
 function readCorsAllowedOrigins(): string[] {
   const pieces: string[] = [];
@@ -80,6 +91,10 @@ async function startServer() {
     cors({
       origin: (origin, callback) => {
         if (!origin) {
+          callback(null, true);
+          return;
+        }
+        if (isCapacitorOrHybridOrigin(origin)) {
           callback(null, true);
           return;
         }
