@@ -37,7 +37,7 @@ export default function MobileAppOnboarding() {
 
   return (
     <div className="flex min-h-[100dvh] flex-col bg-gradient-to-b from-emerald-50/90 via-white to-slate-50 text-slate-900">
-      <div className="mx-auto flex w-full max-w-md flex-1 flex-col px-5 pb-10 pt-[max(1.5rem,env(safe-area-inset-top))]">
+      <div className="mx-auto flex w-full max-w-md flex-1 flex-col px-5 pb-10 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)]">
         <div className="mb-6 flex items-center justify-center gap-2">
           {([0, 1, 2] as const).map((i) => (
             <span

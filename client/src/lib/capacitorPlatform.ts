@@ -28,23 +28,3 @@ export function isLikelyCapacitorWebView(): boolean {
 export function isNativeAppClient(): boolean {
   return isCapacitorNative() || isLikelyCapacitorWebView();
 }
-
-/** Direct read for debug overlay (may differ if `isNativeAppClient` uses fallbacks). */
-export function readCapacitorIsNativePlatformApi(): boolean {
-  if (typeof window === "undefined") return false;
-  try {
-    return Capacitor.isNativePlatform();
-  } catch {
-    return false;
-  }
-}
-
-/** `ios` | `android` | `web` — for debug / diagnostics. */
-export function getCapacitorPlatformLabel(): string {
-  if (typeof window === "undefined") return "ssr";
-  try {
-    return Capacitor.getPlatform();
-  } catch {
-    return "unknown";
-  }
-}

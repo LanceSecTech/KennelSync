@@ -27,16 +27,9 @@ import {
 } from "./pages/MarketingSitePages";
 import Onboarding from "./pages/Onboarding";
 import { getOnboardingState } from "./lib/onboarding";
-import {
-  isNativeAppClient,
-  readCapacitorIsNativePlatformApi,
-} from "./lib/capacitorPlatform";
-import {
-  hasCompletedMobileAppOnboarding,
-  readMobileOnboardingFlagRaw,
-} from "./lib/mobileAppOnboardingStorage";
+import { isNativeAppClient } from "./lib/capacitorPlatform";
+import { hasCompletedMobileAppOnboarding } from "./lib/mobileAppOnboardingStorage";
 import MobileAppOnboarding from "./pages/MobileAppOnboarding";
-import { NativeStartupDebugOverlay } from "./components/NativeStartupDebugOverlay";
 import { trpc } from "./lib/trpc";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -194,7 +187,7 @@ function PublicWebsiteRoutes() {
 
 function NativeAuthScreen() {
   return (
-    <div className="min-h-[100dvh] bg-gradient-to-b from-emerald-50/80 via-white to-slate-50 px-4 pb-10 pt-[max(1.5rem,env(safe-area-inset-top))]">
+    <div className="min-h-[100dvh] bg-gradient-to-b from-emerald-50/80 via-white to-slate-50 px-4 pb-10 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)]">
       <div className="mx-auto w-full max-w-md">
         <p className="mb-6 text-center text-lg font-semibold text-emerald-700">KennelSync</p>
         <WebsiteAuth />
@@ -203,11 +196,6 @@ function NativeAuthScreen() {
   );
 }
 
-/**
- * First paint (all builds): `App` → `AppWithKennel`.
- * Browser + `/`: usually `PublicWebsiteRoutes` → `WebsiteLayout` → `WebsiteHome` (marketing).
- * Native: same entry, but `isNativeAppClient()` should be true → forced `/onboarding` | `/login` | `/app` below.
- */
 function AppWithKennel() {
   const { user, loading } = useAuth();
   const isNative = useMemo(() => isNativeAppClient(), []);
@@ -242,41 +230,6 @@ function AppWithKennel() {
   const isPublicPath = publicPaths.has(location);
   const onLoginPath = location === "/login" || location.startsWith("/login?");
   const mobileIntroDone = hasCompletedMobileAppOnboarding();
-
-  const routingDecision = useMemo(() => {
-    if (!isNative) {
-      return "browser → website layout (marketing on public paths)";
-    }
-    if (loading) {
-      return "native → loading session (tRPC auth.me)";
-    }
-    if (user) {
-      if (isPublicPath || location === "/onboarding") {
-        return "native+signed-in → forcing /app (skip marketing)";
-      }
-      return "native+signed-in → app shell";
-    }
-    if (!mobileIntroDone) {
-      if (location === "/onboarding") {
-        return "native+guest → app onboarding flow";
-      }
-      return "native+guest → forcing /onboarding";
-    }
-    if (onLoginPath) {
-      return "native+guest → login screen";
-    }
-    return "native+guest → forcing /login";
-  }, [
-    isNative,
-    loading,
-    user,
-    isPublicPath,
-    location,
-    mobileIntroDone,
-    onLoginPath,
-  ]);
-
-  const fullHref = typeof window !== "undefined" ? window.location.href : "";
 
   useEffect(() => {
     if (!isNative || loading) return;
@@ -334,140 +287,75 @@ function AppWithKennel() {
     return true;
   }, [user, completedNow]);
 
-  const nativeDebugOverlay = isNative ? (
-    <NativeStartupDebugOverlay
-      pathname={location}
-      nativeRoutingActive={isNative}
-      capacitorApiNative={readCapacitorIsNativePlatformApi()}
-      authLoading={loading}
-      userSessionExists={Boolean(user)}
-      onboardingFlagRaw={readMobileOnboardingFlagRaw()}
-      routingDecision={routingDecision}
-      viteApiUrl={String(import.meta.env.VITE_API_URL ?? "")}
-      fullHref={fullHref}
-    />
-  ) : null;
-
   if (loading) {
     return (
-      <>
-        {nativeDebugOverlay}
-        <div className="flex min-h-screen items-center justify-center bg-slate-50">
-          <p className="text-sm text-slate-600">Loading...</p>
-        </div>
-      </>
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <p className="text-sm text-slate-600">Loading...</p>
+      </div>
     );
   }
 
   // Native: signed-in users should never see the marketing site.
   if (isNative && user) {
     if (isPublicPath || location === "/onboarding") {
-      return (
-        <>
-          {nativeDebugOverlay}
-          <Redirect to="/app" />
-        </>
-      );
+      return <Redirect to="/app" />;
     }
   }
 
   // Native: guest routing — onboarding vs login (website never shown).
   if (isNative && !user) {
     if (onLoginPath) {
-      return (
-        <>
-          {nativeDebugOverlay}
-          <NativeAuthScreen />
-        </>
-      );
+      return <NativeAuthScreen />;
     }
     if (!mobileIntroDone) {
       if (location === "/" || (isPublicPath && location !== "/onboarding")) {
-        return (
-          <>
-            {nativeDebugOverlay}
-            <Redirect to="/onboarding" />
-          </>
-        );
+        return <Redirect to="/onboarding" />;
       }
       if (location === "/onboarding") {
-        return (
-          <>
-            {nativeDebugOverlay}
-            <MobileAppOnboarding />
-          </>
-        );
+        return <MobileAppOnboarding />;
       }
-      return (
-        <>
-          {nativeDebugOverlay}
-          <Redirect to="/onboarding" />
-        </>
-      );
+      return <Redirect to="/onboarding" />;
     }
     if (location === "/" || location === "/onboarding" || isPublicPath) {
-      return (
-        <>
-          {nativeDebugOverlay}
-          <Redirect to="/login" />
-        </>
-      );
+      return <Redirect to="/login" />;
     }
-    return (
-      <>
-        {nativeDebugOverlay}
-        <Redirect to="/login" />
-      </>
-    );
+    return <Redirect to="/login" />;
   }
 
   if (isPublicPath) {
-    return (
-      <>
-        {nativeDebugOverlay}
-        <PublicWebsiteRoutes />
-      </>
-    );
+    return <PublicWebsiteRoutes />;
   }
 
   if (!user) {
-    return (
-      <>
-        {nativeDebugOverlay}
-        <Redirect to="/login" />
-      </>
-    );
+    return <Redirect to="/login" />;
   }
 
   return (
-    <>
-      {nativeDebugOverlay}
-      <KennelProvider userRole={user.role} userKennelId={user.kennelId ?? null}>
-        <DashboardLayout>
-          {needsOnboarding ? (
-            user.role === "owner" ? (
-              <OwnerOnboardingRoutes
-                user={user}
-                onOnboardingComplete={() => {
-                  setCompletedNow(true);
-                  setLocation("/app");
-                }}
-              />
-            ) : (
-              <Onboarding
-                user={user}
-                onComplete={() => {
-                  setCompletedNow(true);
-                  setLocation("/app");
-                }}
-              />
-            )
+    <KennelProvider userRole={user.role} userKennelId={user.kennelId ?? null}>
+      <DashboardLayout>
+        {needsOnboarding ? (
+          user.role === "owner" ? (
+            <OwnerOnboardingRoutes
+              user={user}
+              onOnboardingComplete={() => {
+                setCompletedNow(true);
+                setLocation("/app");
+              }}
+            />
           ) : (
-            <RoleRouter />
-          )}
-        </DashboardLayout>
-      </KennelProvider>
-    </>
+            <Onboarding
+              user={user}
+              onComplete={() => {
+                setCompletedNow(true);
+                setLocation("/app");
+              }}
+            />
+          )
+        ) : (
+          <RoleRouter />
+        )}
+      </DashboardLayout>
+    </KennelProvider>
   );
 }
 
