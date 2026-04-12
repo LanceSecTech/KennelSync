@@ -195,7 +195,8 @@ export default defineConfig(({ mode }) => {
     root: path.resolve(import.meta.dirname),
     publicDir: path.resolve(import.meta.dirname, "client", "public"),
     build: {
-      outDir: path.resolve(import.meta.dirname, "dist"),
+      // Web/Capacitor assets only — Node bundle lives in dist/server (see package.json build:server).
+      outDir: path.resolve(import.meta.dirname, "dist", "web"),
       emptyOutDir: true,
     },
     server: {
