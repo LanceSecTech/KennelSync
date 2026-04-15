@@ -289,6 +289,8 @@ export const appRouter = router({
             if (updates.name !== undefined) {
               return await db.updateUser(ctx.user.id, { name: updates.name });
             }
+            // If only phone was provided and column is missing, no-op instead of failing onboarding/auth.
+            return await db.getUserById(ctx.user.id);
           }
           throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: msg || "Failed to update profile" });
         }
@@ -318,6 +320,20 @@ export const appRouter = router({
       await supabase.auth.signOut();
       return { success: true } as const;
     }),
+    deleteAccount: protectedProcedure.mutation(async ({ ctx }) => {
+      if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+      const userId = ctx.user.id;
+
+      const { error } = await ctx.supabase.auth.admin.deleteUser(userId, true);
+      if (error) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: error.message || "Failed to permanently delete account",
+        });
+      }
+
+      return { success: true as const };
+    }),
   }),
 
   // ===== KENNEL ROUTES =====
@@ -333,6 +349,81 @@ export const appRouter = router({
     getById: publicProcedure.input(z.object({ id: z.number() })).query(async ({ input }) => {
       return db.getKennelById(input.id);
     }),
+    nearby: protectedProcedure
+      .input(
+        z.object({
+          latitude: z.number().min(-90).max(90),
+          longitude: z.number().min(-180).max(180),
+          limit: z.number().int().min(1).max(50).optional(),
+        })
+      )
+      .query(async ({ input }) => {
+        const limit = input.limit ?? 10;
+        const pointLat = input.latitude;
+        const pointLng = input.longitude;
+
+        // Prefer exact geo distance when lat/lng columns exist; gracefully fall back otherwise.
+        let rows: Array<Record<string, any>> = [];
+        const withGeo = await supabase
+          .from("kennels")
+          .select("id,name,address,city,state,zip,is_active,latitude,longitude")
+          .eq("is_active", true)
+          .limit(200);
+
+        if (withGeo.error) {
+          const msg = String(withGeo.error.message || "").toLowerCase();
+          if (!(msg.includes("latitude") || msg.includes("longitude"))) {
+            throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: withGeo.error.message });
+          }
+          const fallback = await supabase
+            .from("kennels")
+            .select("id,name,address,city,state,zip,is_active")
+            .eq("is_active", true)
+            .limit(200);
+          if (fallback.error) {
+            throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: fallback.error.message });
+          }
+          rows = fallback.data || [];
+        } else {
+          rows = withGeo.data || [];
+        }
+
+        const toRad = (n: number) => (n * Math.PI) / 180;
+        const haversineMiles = (lat1: number, lng1: number, lat2: number, lng2: number) => {
+          const earthRadiusMiles = 3958.8;
+          const dLat = toRad(lat2 - lat1);
+          const dLng = toRad(lng2 - lng1);
+          const a =
+            Math.sin(dLat / 2) ** 2 +
+            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+          return earthRadiusMiles * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        };
+
+        const mapped = rows.map((row) => {
+          const lat = row.latitude != null ? Number(row.latitude) : null;
+          const lng = row.longitude != null ? Number(row.longitude) : null;
+          const canMeasure = Number.isFinite(lat) && Number.isFinite(lng);
+          const distanceMiles = canMeasure ? haversineMiles(pointLat, pointLng, Number(lat), Number(lng)) : null;
+          return {
+            id: Number(row.id),
+            name: String(row.name ?? "Kennel"),
+            address: row.address ? String(row.address) : null,
+            city: row.city ? String(row.city) : null,
+            state: row.state ? String(row.state) : null,
+            zip: row.zip ? String(row.zip) : null,
+            distanceMiles: distanceMiles == null ? null : Number(distanceMiles.toFixed(1)),
+          };
+        });
+
+        return mapped
+          .sort((a, b) => {
+            if (a.distanceMiles == null && b.distanceMiles == null) return a.name.localeCompare(b.name);
+            if (a.distanceMiles == null) return 1;
+            if (b.distanceMiles == null) return -1;
+            return a.distanceMiles - b.distanceMiles;
+          })
+          .slice(0, limit);
+      }),
     myKennels: protectedProcedure.query(async ({ ctx }) => {
       if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
       if (ctx.user.role === 'owner') {

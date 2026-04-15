@@ -4,14 +4,27 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { SettingsSubpageShell } from "./SettingsSubpageShell";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { User } from "lucide-react";
+import { useLocation } from "wouter";
 
 export function SettingsAccountPage() {
-  const { user, refresh } = useAuth();
+  const { user, refresh, logout } = useAuth();
   const utils = trpc.useUtils();
+  const [, setLocation] = useLocation();
   const [name, setName] = useState(user?.name ?? "");
   const [phone, setPhone] = useState(user?.phone ?? "");
 
@@ -27,6 +40,9 @@ export function SettingsAccountPage() {
       await refresh();
     },
     onError: (e) => toast.error(e.message || "Could not update profile"),
+  });
+  const deleteAccount = trpc.auth.deleteAccount.useMutation({
+    onError: (e) => toast.error(e.message || "Could not delete account"),
   });
 
   const dirty =
@@ -106,6 +122,54 @@ export function SettingsAccountPage() {
         </CardHeader>
         <CardContent className="pt-0">
           <p className="text-sm capitalize font-medium">{user?.role ?? "—"}</p>
+        </CardContent>
+      </Card>
+
+      <Card className="border border-destructive/30 bg-destructive/5 shadow-sm">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base text-destructive">Delete account</CardTitle>
+          <CardDescription className="text-xs">
+            Permanently delete your account and all related profile/app data. This cannot be undone.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button type="button" variant="destructive" className="w-full">
+                Delete Account
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete account permanently?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This action is permanent and cannot be undone. Your sign-in account and all related data will be
+                  deleted.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={deleteAccount.isPending}>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  disabled={deleteAccount.isPending}
+                  onClick={async (e) => {
+                    e.preventDefault();
+                    try {
+                      await deleteAccount.mutateAsync();
+                      await logout();
+                      localStorage.removeItem("hasCompletedOnboarding");
+                      toast.success("Account deleted");
+                      setLocation("/login");
+                    } catch (err: any) {
+                      toast.error(err?.message || "Could not delete account");
+                    }
+                  }}
+                >
+                  {deleteAccount.isPending ? "Deleting…" : "Yes, delete account"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </CardContent>
       </Card>
     </SettingsSubpageShell>

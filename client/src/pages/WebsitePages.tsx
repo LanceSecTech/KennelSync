@@ -186,12 +186,14 @@ export function WebsiteAuth() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [phone, setPhone] = useState("");
   const [signupRole, setSignupRole] = useState<"customer" | "employee" | "owner">("customer");
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [busy, setBusy] = useState(false);
   const [forceShowForm, setForceShowForm] = useState(false);
   const { user, loading, signIn, signUp, logout } = useAuth();
+  const updateProfileMutation = trpc.auth.updateProfile.useMutation();
   const [location, setLocation] = useLocation();
 
   useEffect(() => {
@@ -212,6 +214,17 @@ export function WebsiteAuth() {
     try {
       if (isSignUp) {
         const data = await signUp(email, password, name, signupRole);
+        if (data.session) {
+          // Persist signup profile immediately so onboarding does not re-collect the same fields.
+          try {
+            await updateProfileMutation.mutateAsync({
+              name: name.trim(),
+              phone: phone.trim() || undefined,
+            });
+          } catch {
+            // Non-fatal: account was created; user can still continue and edit details later.
+          }
+        }
         if (data.session) {
           setLocation("/app");
           return;
@@ -325,7 +338,7 @@ export function WebsiteAuth() {
                 />
               </div>
               <div>
-                <Label>Role</Label>
+                <Label>I am a</Label>
                 <Select value={signupRole} onValueChange={(v: "customer" | "employee" | "owner") => setSignupRole(v)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -334,6 +347,15 @@ export function WebsiteAuth() {
                     <SelectItem value="owner">Owner</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              <div>
+                <Label>Phone (optional)</Label>
+                <Input
+                  name="signup-phone"
+                  autoComplete="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                />
               </div>
             </>
           ) : null}

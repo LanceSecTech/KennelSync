@@ -1,0 +1,6 @@
+{
+	"appId": "com.kennelsync.app",
+	"appName": "KennelSync",
+	"webDir": "dist/web",
+	"packageClassList": []
+}

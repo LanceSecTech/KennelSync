@@ -6,9 +6,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { trpc } from "@/lib/trpc";
 import { useKennel } from "@/contexts/KennelContext";
 import { getOnboardingState, saveOnboardingState, type AppRole, type OnboardingState } from "@/lib/onboarding";
+import { getCurrentDeviceLocation } from "@/lib/location";
 import { toast } from "sonner";
 
 type Props = {
@@ -56,7 +68,6 @@ export default function Onboarding({ user, onComplete }: Props) {
   const completeOnboardingMut = trpc.auth.completeOnboarding.useMutation({
     onSuccess: () => void utils.auth.me.invalidate(),
   });
-  const saveProfile = trpc.auth.updateProfile.useMutation();
   const createDog = trpc.dog.create.useMutation();
   const updateDog = trpc.dog.update.useMutation();
   const { data: myKennelsForPlan, isPending: myKennelsPending } = trpc.kennel.myKennels.useQuery(undefined, {
@@ -154,24 +165,6 @@ export default function Onboarding({ user, onComplete }: Props) {
   }
 
   async function handleContinue() {
-    if (role === "customer" && state.step === 1) {
-      const name = String(state.data.fullName || "").trim();
-      const phone = String(state.data.phone || "").trim();
-      if (!name && !phone) {
-        next();
-        return;
-      }
-      try {
-        await saveProfile.mutateAsync({
-          name: name || undefined,
-          phone: phone || undefined,
-        });
-      } catch (err: any) {
-        toast.error(err?.message || "Failed to save profile");
-        return;
-      }
-    }
-
     if (role === "customer" && state.step === 4) {
       const dogId = Number(state.data.createdDogId || 0);
       if (dogId > 0) {
@@ -271,8 +264,8 @@ export default function Onboarding({ user, onComplete }: Props) {
                 ) : (
                   <>
                     <Button variant="ghost" onClick={next}>Skip for now</Button>
-                    <Button onClick={handleContinue} disabled={saveProfile.isPending || updateDog.isPending}>
-                      {saveProfile.isPending || updateDog.isPending ? "Saving..." : "Continue"}
+                    <Button onClick={handleContinue} disabled={updateDog.isPending}>
+                      {updateDog.isPending ? "Saving..." : "Continue"}
                     </Button>
                   </>
                 )}
@@ -339,7 +332,33 @@ function OnboardingStep(props: {
     onAdvance,
   } = props;
   const [selectedKennelId, setSelectedKennelId] = useState<string>("");
+  const [kennelSearch, setKennelSearch] = useState("");
+  const [locationDialogOpen, setLocationDialogOpen] = useState(false);
+  const [locationState, setLocationState] = useState<"idle" | "requesting" | "granted" | "denied" | "error">(
+    () => (String(data.locationPermission || "") === "granted" ? "granted" : "idle"),
+  );
+  const [locationCoords, setLocationCoords] = useState<{ latitude: number; longitude: number } | null>(() => {
+    const lat = Number(data.locationLatitude);
+    const lng = Number(data.locationLongitude);
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      return { latitude: lat, longitude: lng };
+    }
+    return null;
+  });
   const [, setLocation] = useLocation();
+  const nearbyKennelsQuery = trpc.kennel.nearby.useQuery(
+    {
+      latitude: locationCoords?.latitude ?? 0,
+      longitude: locationCoords?.longitude ?? 0,
+      limit: 8,
+    },
+    { enabled: Boolean(locationCoords) },
+  );
+  const filteredKennels = useMemo(() => {
+    const q = kennelSearch.trim().toLowerCase();
+    if (!q) return allKennels;
+    return allKennels.filter((k) => k.name.toLowerCase().includes(q));
+  }, [allKennels, kennelSearch]);
 
   const openKennelProfile = () => {
     const targetRoute = "/kennel";
@@ -357,6 +376,18 @@ function OnboardingStep(props: {
     }
 
     if (step === 1) {
+      if (role === "customer") {
+        return (
+          <div className="space-y-2">
+            <p className="text-sm text-slate-700">
+              Your basic profile was saved when you created your account.
+            </p>
+            <p className="text-xs text-slate-500">
+              You can update your name or phone anytime from Settings &gt; Account Details.
+            </p>
+          </div>
+        );
+      }
       return (
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
@@ -376,13 +407,110 @@ function OnboardingStep(props: {
     }
 
     if (role === "customer" && step === 2) {
+      const nearby = nearbyKennelsQuery.data ?? [];
       return (
         <div className="space-y-3">
-          <p className="text-sm text-slate-600">Link to a kennel and set a favorite/default.</p>
+          <p className="text-sm text-slate-600">Link to a kennel by name, or find nearby kennels with location.</p>
+          <div className="flex flex-wrap gap-2">
+            <AlertDialog open={locationDialogOpen} onOpenChange={setLocationDialogOpen}>
+              <AlertDialogTrigger asChild>
+                <Button type="button" variant="outline">Find kennels near me</Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Allow location access?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    We use your location to show kennels near you. You can skip this and continue onboarding.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel
+                    disabled={locationState === "requesting" || nearbyKennelsQuery.isFetching}
+                    onClick={() => {
+                      setLocationState("denied");
+                      updateData({ locationPermission: "skipped" });
+                    }}
+                  >
+                    Not now
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-primary text-primary-foreground hover:bg-primary/90"
+                    disabled={locationState === "requesting" || nearbyKennelsQuery.isFetching}
+                    onClick={async (e) => {
+                      e.preventDefault();
+                      setLocationState("requesting");
+                      try {
+                        const loc = await getCurrentDeviceLocation();
+                        setLocationCoords({ latitude: loc.latitude, longitude: loc.longitude });
+                        updateData({
+                          locationPermission: "granted",
+                          locationLatitude: loc.latitude,
+                          locationLongitude: loc.longitude,
+                          locationAccuracy: loc.accuracy,
+                        });
+                        setLocationState("granted");
+                        setLocationDialogOpen(false);
+                        toast.success("Location enabled");
+                      } catch (err: any) {
+                        const msg = String(err?.message || "").toLowerCase();
+                        const denied = msg.includes("denied") || msg.includes("permission");
+                        setLocationState(denied ? "denied" : "error");
+                        updateData({ locationPermission: denied ? "denied" : "error" });
+                        toast.error(
+                          denied ? "Location permission denied. You can continue without it." : "Could not get location",
+                        );
+                      }
+                    }}
+                  >
+                    {locationState === "requesting" || nearbyKennelsQuery.isFetching ? "Finding..." : "Allow location"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                setLocationState("denied");
+                updateData({ locationPermission: "skipped" });
+              }}
+            >
+              Skip for now
+            </Button>
+          </div>
+          {nearby.length > 0 ? (
+            <div className="space-y-2 rounded-lg border bg-slate-50 p-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-600">Nearby kennels</p>
+              <div className="space-y-2">
+                {nearby.map((k) => (
+                  <button
+                    type="button"
+                    key={k.id}
+                    className="w-full rounded-md border bg-white px-3 py-2 text-left transition hover:border-primary/40"
+                    onClick={() => setSelectedKennelId(String(k.id))}
+                  >
+                    <p className="text-sm font-medium text-slate-900">{k.name}</p>
+                    <p className="text-xs text-slate-500">
+                      {[k.city, k.state].filter(Boolean).join(", ") || k.address || "Address coming soon"}
+                      {typeof k.distanceMiles === "number" ? ` • ${k.distanceMiles} mi` : ""}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          <div className="space-y-2">
+            <Label>Link kennel by name</Label>
+            <Input
+              value={kennelSearch}
+              onChange={(e) => setKennelSearch(e.target.value)}
+              placeholder="Search kennel name"
+            />
+          </div>
           <Select value={selectedKennelId} onValueChange={setSelectedKennelId}>
             <SelectTrigger><SelectValue placeholder="Choose kennel" /></SelectTrigger>
             <SelectContent>
-              {allKennels.map((k) => <SelectItem key={k.id} value={String(k.id)}>{k.name}</SelectItem>)}
+              {filteredKennels.map((k) => <SelectItem key={k.id} value={String(k.id)}>{k.name}</SelectItem>)}
             </SelectContent>
           </Select>
           <div className="flex gap-2">
