@@ -283,14 +283,6 @@ async function deleteFromTableIfPresent(
 }
 
 async function hardDeleteAccountData(userId: string) {
-  const { data: userRow, error: userErr } = await supabase
-    .from("users")
-    .select("id")
-    .eq("id", userId)
-    .maybeSingle();
-  if (userErr) throw userErr;
-  if (!userRow) return;
-
   const { data: kennelRows, error: kennelErr } = await supabase
     .from("kennels")
     .select("id")
