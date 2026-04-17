@@ -263,6 +263,108 @@ async function getUserStripeCustomerId(userId: string): Promise<string | null> {
   return id ? String(id) : null;
 }
 
+async function deleteFromTableIfPresent(
+  table: string,
+  column: string,
+  value: string | number | Array<string | number>,
+) {
+  let query = supabase.from(table).delete();
+  query = Array.isArray(value) ? query.in(column, value) : query.eq(column, value);
+  const { error } = await query;
+  if (!error) return;
+  const msg = String(error.message || "").toLowerCase();
+  const missingTable =
+    msg.includes("does not exist")
+    || msg.includes("schema cache")
+    || msg.includes("could not find the table");
+  const missingColumn = msg.includes("column") && msg.includes("does not exist");
+  if (missingTable || missingColumn) return;
+  throw error;
+}
+
+async function hardDeleteAccountData(userId: string) {
+  const { data: userRow, error: userErr } = await supabase
+    .from("users")
+    .select("id")
+    .eq("id", userId)
+    .maybeSingle();
+  if (userErr) throw userErr;
+  if (!userRow) return;
+
+  const { data: kennelRows, error: kennelErr } = await supabase
+    .from("kennels")
+    .select("id")
+    .eq("owner_id", userId);
+  if (kennelErr) throw kennelErr;
+  const kennelIds = (kennelRows || []).map((k: { id: number }) => k.id);
+
+  let bookingIds: number[] = [];
+  if (kennelIds.length > 0) {
+    const { data: ownedBookingRows, error: ownedBookingsErr } = await supabase
+      .from("bookings")
+      .select("id")
+      .in("kennel_id", kennelIds);
+    if (ownedBookingsErr) throw ownedBookingsErr;
+    bookingIds = (ownedBookingRows || []).map((b: { id: number }) => b.id);
+  }
+
+  const { data: ownedDogRows, error: ownedDogsErr } = await supabase
+    .from("dogs")
+    .select("id")
+    .eq("owner_id", userId);
+  if (ownedDogsErr) throw ownedDogsErr;
+  const ownedDogIds = (ownedDogRows || []).map((d: { id: number }) => d.id);
+
+  // User-linked tables first.
+  await deleteFromTableIfPresent("kennel_favorites", "user_id", userId);
+  await deleteFromTableIfPresent("customer_kennels", "user_id", userId);
+  await deleteFromTableIfPresent("customer_kennel_associations", "customer_id", userId);
+  await deleteFromTableIfPresent("audit_logs", "user_id", userId);
+
+  // Child rows tied to owner-owned bookings.
+  if (bookingIds.length > 0) {
+    await deleteFromTableIfPresent("room_assignment_days", "booking_id", bookingIds);
+    await deleteFromTableIfPresent("room_assignments", "booking_id", bookingIds);
+    await deleteFromTableIfPresent("booking_add_ons", "booking_id", bookingIds);
+    await deleteFromTableIfPresent("booking_discounts", "booking_id", bookingIds);
+    await deleteFromTableIfPresent("booking_dogs", "booking_id", bookingIds);
+    await deleteFromTableIfPresent("payments", "booking_id", bookingIds);
+  }
+
+  // Child rows tied to user-owned dogs.
+  if (ownedDogIds.length > 0) {
+    await deleteFromTableIfPresent("dog_badge_assignments", "dog_id", ownedDogIds);
+    await deleteFromTableIfPresent("vaccinations", "dog_id", ownedDogIds);
+    await deleteFromTableIfPresent("booking_add_ons", "dog_id", ownedDogIds);
+    await deleteFromTableIfPresent("booking_dogs", "dog_id", ownedDogIds);
+  }
+
+  // Direct user-linked rows.
+  await deleteFromTableIfPresent("payments", "customer_id", userId);
+  await deleteFromTableIfPresent("bookings", "customer_id", userId);
+  await deleteFromTableIfPresent("dogs", "owner_id", userId);
+
+  // Owner-linked kennel hierarchy.
+  if (kennelIds.length > 0) {
+    await deleteFromTableIfPresent("alerts", "kennel_id", kennelIds);
+    await deleteFromTableIfPresent("business_hours", "kennel_id", kennelIds);
+    await deleteFromTableIfPresent("checkout_add_ons", "kennel_id", kennelIds);
+    await deleteFromTableIfPresent("checkout_discounts", "kennel_id", kennelIds);
+    await deleteFromTableIfPresent("customer_kennel_associations", "kennel_id", kennelIds);
+    await deleteFromTableIfPresent("kennel_favorites", "kennel_id", kennelIds);
+    await deleteFromTableIfPresent("kennel_required_vaccines", "kennel_id", kennelIds);
+    await deleteFromTableIfPresent("payments", "kennel_id", kennelIds);
+    await deleteFromTableIfPresent("bookings", "kennel_id", kennelIds);
+    await deleteFromTableIfPresent("dog_badges", "kennel_id", kennelIds);
+    await deleteFromTableIfPresent("rooms", "kennel_id", kennelIds);
+    await deleteFromTableIfPresent("services", "kennel_id", kennelIds);
+    await deleteFromTableIfPresent("kennels", "id", kennelIds);
+  }
+
+  // Finally remove profile row. Auth user is deleted in the mutation after this.
+  await deleteFromTableIfPresent("users", "id", userId);
+}
+
 export const appRouter = router({
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
@@ -323,16 +425,24 @@ export const appRouter = router({
     deleteAccount: protectedProcedure.mutation(async ({ ctx }) => {
       if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
       const userId = ctx.user.id;
+      try {
+        await hardDeleteAccountData(userId);
 
-      const { error } = await ctx.supabase.auth.admin.deleteUser(userId, true);
-      if (error) {
+        const { error: authDeleteError } = await supabase.auth.admin.deleteUser(userId);
+        if (authDeleteError) {
+          const msg = String(authDeleteError.message || "").toLowerCase();
+          if (!msg.includes("user not found")) {
+            throw authDeleteError;
+          }
+        }
+
+        return { success: true as const };
+      } catch (error: any) {
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message: error.message || "Failed to permanently delete account",
+          message: String(error?.message || "Failed to permanently delete account"),
         });
       }
-
-      return { success: true as const };
     }),
   }),
 

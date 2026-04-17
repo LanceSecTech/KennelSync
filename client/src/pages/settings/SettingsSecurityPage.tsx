@@ -1,7 +1,18 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
+import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { SettingsSubpageShell } from "./SettingsSubpageShell";
 import { toast } from "sonner";
 import { useState } from "react";
@@ -9,7 +20,23 @@ import { KeyRound, LogOut, ShieldCheck } from "lucide-react";
 
 export function SettingsSecurityPage() {
   const { user, logout } = useAuth();
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [sending, setSending] = useState(false);
+  const deleteAccount = trpc.auth.deleteAccount.useMutation({
+    onSuccess: async () => {
+      toast.success("Your account has been permanently deleted.");
+      try {
+        await logout();
+      } finally {
+        if (typeof window !== "undefined") {
+          window.location.href = "/login";
+        }
+      }
+    },
+    onError: (e) => {
+      toast.error(e.message || "Could not delete account");
+    },
+  });
 
   const sendReset = async () => {
     const email = user?.email?.trim();
@@ -93,6 +120,50 @@ export function SettingsSecurityPage() {
           </Button>
         </CardContent>
       </Card>
+
+      <Card className="border-destructive/20 shadow-sm bg-white">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base text-destructive">Danger Zone</CardTitle>
+          <CardDescription className="text-xs">
+            Permanently delete your account and all related data.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full text-destructive border-destructive/40 hover:bg-destructive/5"
+            onClick={() => setConfirmOpen(true)}
+            disabled={deleteAccount.isPending}
+          >
+            {deleteAccount.isPending ? "Deleting account…" : "Delete account permanently"}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete your account permanently?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This deletes your KennelSync account, profile, and related data. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteAccount.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleteAccount.isPending}
+              onClick={(e) => {
+                e.preventDefault();
+                deleteAccount.mutate();
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteAccount.isPending ? "Deleting…" : "Yes, delete permanently"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </SettingsSubpageShell>
   );
 }
