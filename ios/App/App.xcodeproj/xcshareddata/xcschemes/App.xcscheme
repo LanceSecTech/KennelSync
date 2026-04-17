@@ -18,7 +18,7 @@
                BlueprintIdentifier = "504EC3031FED79650016851F"
                BuildableName = "KennelSync.app"
                BlueprintName = "KennelSync"
-               ReferencedContainer = "container:KennelSync.xcodeproj">
+               ReferencedContainer = "container:App.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -48,7 +48,7 @@
             BlueprintIdentifier = "504EC3031FED79650016851F"
             BuildableName = "KennelSync.app"
             BlueprintName = "KennelSync"
-            ReferencedContainer = "container:KennelSync.xcodeproj">
+            ReferencedContainer = "container:App.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -65,7 +65,7 @@
             BlueprintIdentifier = "504EC3031FED79650016851F"
             BuildableName = "KennelSync.app"
             BlueprintName = "KennelSync"
-            ReferencedContainer = "container:KennelSync.xcodeproj">
+            ReferencedContainer = "container:App.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>

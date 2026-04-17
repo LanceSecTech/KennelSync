@@ -9,12 +9,9 @@ import {
   Home,
   Calendar,
   AlertCircle,
-  DollarSign,
-  PawPrint,
-  Clock,
+  MessageCircle,
   Dog,
   Plus,
-  DoorOpen,
 } from "lucide-react";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
 import OwnerSubscriptionGate from "./OwnerSubscriptionGate";
@@ -99,16 +96,48 @@ function CustomerNavTabButton({ item, active }: { item: NavItem; active: boolean
   );
 }
 
-const CUSTOMER_NAV_SLOTS: NavItem[] = [
-  { icon: Home, label: "Home", path: "/app" },
-  { icon: Dog, label: "My Dogs", path: "/dogs" },
-  { icon: Calendar, label: "My Stays", path: "/stays" },
-  { icon: DollarSign, label: "Payments", path: "/payments" },
-];
+function mobileNavItemsForRole(role: string): NavItem[] {
+  if (role === "owner") {
+    return [
+      { icon: Home, label: "Dashboard", path: "/app" },
+      { icon: Calendar, label: "Bookings", path: "/bookings" },
+      { icon: Dog, label: "Pets", path: "/settings?tab=owners-pets" },
+      { icon: MessageCircle, label: "Messages", path: "/alerts" },
+      { icon: Settings, label: "Settings", path: "/settings" },
+    ];
+  }
 
-function CustomerBottomNav({ location, isNative }: { location: string; isNative: boolean }) {
-  const bookActive = location === "/book";
-  const [, navigate] = useLocation();
+  if (role === "employee") {
+    return [
+      { icon: Home, label: "Dashboard", path: "/app" },
+      { icon: Calendar, label: "Bookings", path: "/checkin" },
+      { icon: Dog, label: "Pets", path: "/dogs" },
+      { icon: MessageCircle, label: "Messages", path: "/alerts" },
+      { icon: Settings, label: "Settings", path: "/settings" },
+    ];
+  }
+
+  return [
+    { icon: Home, label: "Dashboard", path: "/app" },
+    { icon: Calendar, label: "Bookings", path: "/stays" },
+    { icon: Dog, label: "Pets", path: "/dogs" },
+    { icon: MessageCircle, label: "Messages", path: "/settings/notifications" },
+    { icon: Settings, label: "Settings", path: "/settings" },
+  ];
+}
+
+function CustomerBottomNav({
+  location,
+  isNative,
+  role,
+}: {
+  location: string;
+  isNative: boolean;
+  role: string;
+}) {
+  const navItems = mobileNavItemsForRole(role);
+  const isMessagesActive = location.startsWith(navItems[3].path);
+  const isSettingsActive = location.startsWith(navItems[4].path);
 
   return (
     <nav
@@ -118,50 +147,24 @@ function CustomerBottomNav({ location, isNative }: { location: string; isNative:
       <div
         className={cn(
           "relative w-full px-2 sm:px-4 md:px-8",
-          isNative
-            ? "pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] pt-7"
-            : "pb-[max(0.65rem,env(safe-area-inset-bottom,0px))] pt-9 sm:pt-10",
+          isNative ? "pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] pt-2" : "py-3",
         )}
       >
-        <button
-          type="button"
-          onClick={() => navigate("/book")}
-          aria-label="Book a new stay"
-          aria-current={bookActive ? "page" : undefined}
-          className="group absolute left-1/2 top-0 z-10 flex w-[5.25rem] -translate-x-1/2 flex-col items-center border-0 bg-transparent p-0 focus:outline-none focus-visible:rounded-xl focus-visible:ring-2 focus-visible:ring-green-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white active:[&_.book-fab-circle]:scale-95 sm:w-[5.5rem]"
-        >
-          <span
-            className={`book-fab-circle flex h-[3.75rem] w-[3.75rem] shrink-0 -translate-y-1/2 items-center justify-center rounded-full text-white shadow-[0_8px_28px_rgba(22,163,74,0.45)] transition-[transform,box-shadow,background] duration-200 sm:h-16 sm:w-16 ${
-              bookActive
-                ? "scale-[1.02] bg-gradient-to-b from-green-600 to-green-700 ring-[3px] ring-white"
-                : "bg-gradient-to-b from-green-500 to-green-600 ring-4 ring-white group-hover:from-green-500 group-hover:to-green-700 group-hover:shadow-[0_10px_32px_rgba(22,163,74,0.5)]"
-            }`}
-            aria-hidden
-          >
-            <Plus className="h-[1.25rem] w-[1.25rem] shrink-0 stroke-[2.75] sm:h-5 sm:w-5" />
-          </span>
-          <span
-            className={`relative z-10 -mt-[1.7rem] text-[9px] font-bold leading-none tracking-wide transition-colors sm:-mt-[1.85rem] sm:text-[10px] ${
-              bookActive ? "text-green-700" : "text-slate-700 group-hover:text-slate-900"
-            }`}
-          >
-            Book
-          </span>
-        </button>
-
         <div className="grid min-h-[3.25rem] w-full grid-cols-5 items-end gap-0">
           <div className="flex justify-center">
-            <CustomerNavTabButton item={CUSTOMER_NAV_SLOTS[0]} active={location === CUSTOMER_NAV_SLOTS[0].path} />
+            <CustomerNavTabButton item={navItems[0]} active={location.startsWith(navItems[0].path)} />
           </div>
           <div className="flex justify-center">
-            <CustomerNavTabButton item={CUSTOMER_NAV_SLOTS[1]} active={location === CUSTOMER_NAV_SLOTS[1].path} />
-          </div>
-          <div className="pointer-events-none flex min-h-[1px] justify-center" aria-hidden="true" />
-          <div className="flex justify-center">
-            <CustomerNavTabButton item={CUSTOMER_NAV_SLOTS[2]} active={location === CUSTOMER_NAV_SLOTS[2].path} />
+            <CustomerNavTabButton item={navItems[1]} active={location.startsWith(navItems[1].path)} />
           </div>
           <div className="flex justify-center">
-            <CustomerNavTabButton item={CUSTOMER_NAV_SLOTS[3]} active={location === CUSTOMER_NAV_SLOTS[3].path} />
+            <CustomerNavTabButton item={navItems[2]} active={location.startsWith(navItems[2].path)} />
+          </div>
+          <div className="flex justify-center">
+            <CustomerNavTabButton item={navItems[3]} active={isMessagesActive} />
+          </div>
+          <div className="flex justify-center">
+            <CustomerNavTabButton item={navItems[4]} active={isSettingsActive} />
           </div>
         </div>
       </div>
@@ -172,34 +175,24 @@ function CustomerBottomNav({ location, isNative }: { location: string; isNative:
 function BottomNav({ role, isNative }: { role: string; isNative: boolean }) {
   const location = useLocation()[0];
 
-  if (role !== "owner" && role !== "employee") {
-    return <CustomerBottomNav location={location} isNative={isNative} />;
+  if (isNative) {
+    return <CustomerBottomNav location={location} isNative={isNative} role={role} />;
   }
 
-  const getNavItems = (): NavItem[] => {
-    switch (role) {
-      case "owner":
-        return [
+  const navItems: NavItem[] =
+    role === "owner"
+      ? [
           { icon: Home, label: "Dashboard", path: "/app" },
           { icon: Calendar, label: "Bookings", path: "/bookings" },
           { icon: AlertCircle, label: "Alerts", path: "/alerts" },
-          { icon: DoorOpen, label: "Rooms", path: "/rooms" },
-          { icon: PawPrint, label: "Kennel", path: "/kennel" },
-        ];
-      case "employee":
-        return [
+          { icon: Settings, label: "Settings", path: "/settings" },
+        ]
+      : [
           { icon: Home, label: "Dashboard", path: "/app" },
-          { icon: Clock, label: "Today", path: "/today" },
-          { icon: Calendar, label: "Check-In/Out", path: "/checkin" },
-          { icon: DoorOpen, label: "Rooms", path: "/rooms" },
-          { icon: Dog, label: "Dogs", path: "/dogs" },
+          { icon: Dog, label: "Pets", path: "/dogs" },
+          { icon: Calendar, label: "Bookings", path: "/stays" },
+          { icon: Settings, label: "Settings", path: "/settings" },
         ];
-      default:
-        return [];
-    }
-  };
-
-  const navItems = getNavItems();
 
   return (
     <div
@@ -213,6 +206,32 @@ function BottomNav({ role, isNative }: { role: string; isNative: boolean }) {
           <NavTabButton key={item.path} item={item} active={location === item.path} />
         ))}
       </div>
+    </div>
+  );
+}
+
+function MobileNativeLayout({ children }: { children: React.ReactNode }) {
+  const [location, navigate] = useLocation();
+  const { user } = useAuth();
+  const canShowFab = user?.role === "customer";
+  const isBookRoute = location === "/book" || location.startsWith("/book?");
+
+  return (
+    <div className="relative rounded-3xl border border-slate-200/70 bg-gradient-to-b from-white via-slate-50/70 to-white px-2 pb-2 pt-2 shadow-[0_8px_30px_rgba(15,23,42,0.06)]">
+      {children}
+      {canShowFab && (
+        <button
+          type="button"
+          aria-label="Create booking"
+          onClick={() => navigate("/book")}
+          className={cn(
+            "fixed bottom-24 right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full text-white shadow-[0_10px_24px_rgba(16,185,129,0.35)] transition-all",
+            isBookRoute ? "bg-emerald-700" : "bg-emerald-600 hover:bg-emerald-700",
+          )}
+        >
+          <Plus className="h-6 w-6" />
+        </button>
+      )}
     </div>
   );
 }
@@ -294,7 +313,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         >
           <OwnerSubscriptionGate>
             {isNative ? (
-              <NativeMainTransition routeKey={location}>{children}</NativeMainTransition>
+              <MobileNativeLayout>
+                <NativeMainTransition routeKey={location}>{children}</NativeMainTransition>
+              </MobileNativeLayout>
             ) : (
               children
             )}
