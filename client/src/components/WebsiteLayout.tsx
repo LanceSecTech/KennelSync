@@ -3,6 +3,7 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
 import { Menu, X } from "lucide-react";
+import { WebsiteBrandLockup } from "@/components/WebsiteBrandLockup";
 
 const footerLinks = [
   { href: "/about", label: "About" },
@@ -54,9 +55,7 @@ export default function WebsiteLayout({ children }: { children: ReactNode }) {
 
       <header className="relative sticky top-0 z-50 border-b border-emerald-100/70 bg-white/95 backdrop-blur">
         <div className="relative z-20 mx-auto flex min-h-14 w-full max-w-7xl items-center justify-between gap-3 px-4 py-3 lg:min-h-0 lg:px-8">
-          <Link href="/" className="shrink-0">
-            <span className="text-lg font-semibold tracking-wide text-emerald-700">KennelSync</span>
-          </Link>
+          <WebsiteBrandLockup className="shrink-0 py-0.5" />
 
           <nav className="hidden flex-1 flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm text-slate-700 lg:flex">
             {MOBILE_NAV_ITEMS.map((item) => (
@@ -134,9 +133,9 @@ export default function WebsiteLayout({ children }: { children: ReactNode }) {
 
       <footer className="border-t border-slate-200 bg-white">
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 py-10 sm:px-6 lg:px-8">
-          <div className="flex flex-col items-start justify-between gap-2 sm:flex-row sm:items-center">
-            <p className="text-base font-semibold text-slate-900">KennelSync</p>
-            <p className="text-sm text-slate-500">Professional kennel operations software</p>
+          <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center sm:gap-4">
+            <WebsiteBrandLockup variant="footer" />
+            <p className="max-w-md text-sm text-slate-500 sm:text-right">Professional kennel operations software</p>
           </div>
           <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-slate-600">
             {footerLinks.map((item) => {

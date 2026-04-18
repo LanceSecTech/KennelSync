@@ -13,6 +13,7 @@ import {
   MARKETING_HOME_GLANCE_SLIDES,
   MARKETING_HOME_HERO_SLIDES,
 } from "@/components/MarketingScreenshotSlideshow";
+import { HomepageValueCards } from "@/components/HomepageValueCards";
 
 function getAuthModeFromUrl(): "login" | "signup" {
   if (typeof window === "undefined") return "login";
@@ -21,24 +22,6 @@ function getAuthModeFromUrl(): "login" | "signup" {
 }
 
 export function WebsiteHome() {
-  const roles = [
-    {
-      title: "Owners",
-      body: "Run services, rooms, bookings, and visibility from one control center.",
-      href: "/owners",
-    },
-    {
-      title: "Employees",
-      body: "Check-ins, room moves, and daily tasks without hunting for details.",
-      href: "/employees",
-    },
-    {
-      title: "Customers",
-      body: "Book stays, keep profiles current, and see clear status.",
-      href: "/customers",
-    },
-  ];
-
   return (
     <div className="relative">
       <section className="relative overflow-hidden border-b border-emerald-100/70">
@@ -48,12 +31,12 @@ export function WebsiteHome() {
             <div className="inline-flex items-center rounded-full border border-emerald-200 bg-white/90 px-3 py-1 text-xs font-medium text-emerald-700">
               Built for professional kennel operations
             </div>
-            <h1 className="mt-4 text-balance text-3xl font-semibold leading-tight text-slate-900 sm:mt-5 sm:text-5xl lg:text-6xl">
-              KennelSync is the operating system for modern kennel teams.
+            <h1 className="mt-4 text-balance text-3xl font-semibold leading-tight tracking-tight text-slate-900 sm:mt-5 sm:text-5xl lg:text-6xl">
+              The calm hub for bookings, dogs, rooms, and daily kennel work.
             </h1>
             <p className="mt-4 max-w-xl text-base leading-relaxed text-slate-600 sm:mt-5 sm:text-lg">
-              One platform for bookings, dog profiles, rooms, staff workflows, and customer touchpoints—designed for real
-              pet care businesses.
+              KennelSync connects owners, staff, and pet parents in one place—so your team spends less time chasing details
+              and more time caring for dogs.
             </p>
             <div className="mt-7 flex flex-col gap-3 sm:mt-8 sm:flex-row sm:flex-wrap">
               <Link href="/login?mode=signup">
@@ -78,54 +61,47 @@ export function WebsiteHome() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8">
-        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-          <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.12em] text-emerald-700">At a glance</p>
-            <h2 className="mt-2 text-2xl font-semibold text-slate-900 sm:text-3xl">A quick look at the product</h2>
-            <p className="mt-2 max-w-xl text-slate-600">
-              Full detail lives on dedicated pages—start here, then dive deeper where you need it.
-            </p>
-          </div>
-          <Link href="/features">
-            <Button variant="outline" className="h-10 rounded-full border-slate-300 px-5 text-sm font-semibold">
-              View all features
-            </Button>
-          </Link>
-        </div>
-        <div className="mx-auto mt-5 min-w-0 max-w-3xl md:mt-8">
-          <MarketingScreenshotSlideshow slides={MARKETING_HOME_GLANCE_SLIDES} />
-        </div>
-      </section>
+      <HomepageValueCards />
 
-      <section className="border-y border-slate-200 bg-slate-50/60">
-        <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8">
-          <p className="text-sm font-semibold uppercase tracking-[0.12em] text-emerald-700">Who it&apos;s for</p>
-          <h2 className="mt-2 text-2xl font-semibold text-slate-900 sm:text-3xl">Built for every role</h2>
-          <div className="mt-10 grid gap-5 lg:grid-cols-3">
-            {roles.map((r) => (
-              <Card key={r.title} className="rounded-2xl border-slate-200 bg-white shadow-sm">
-                <CardHeader>
-                  <CardTitle className="text-xl">For {r.title}</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4 text-slate-600">
-                  <p>{r.body}</p>
-                  <Link href={r.href}>
-                    <Button variant="link" className="h-auto p-0 text-emerald-700">
-                      Learn more →
-                    </Button>
-                  </Link>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
+      <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8">
+        <Card className="overflow-hidden rounded-3xl border-slate-200/90 bg-white shadow-[0_14px_40px_-12px_rgba(15,23,42,0.1)]">
+          <CardHeader className="space-y-3 border-b border-slate-100 bg-slate-50/50 px-5 pb-5 pt-6 sm:px-8 sm:pb-6 sm:pt-8">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <div className="max-w-2xl space-y-2">
+                <p className="text-sm font-semibold uppercase tracking-[0.12em] text-emerald-700">Product snapshot</p>
+                <CardTitle className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
+                  A quick look inside
+                </CardTitle>
+                <p className="text-sm leading-relaxed text-slate-600 sm:text-[15px]">
+                  Swipe or use arrows—then open a section above for the story behind each role.
+                </p>
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <Link href="/#explore">
+                  <Button variant="ghost" className="h-10 rounded-full px-4 text-sm font-semibold text-emerald-700 hover:bg-emerald-50">
+                    Role overview
+                  </Button>
+                </Link>
+                <Link href="/features">
+                  <Button variant="outline" className="h-10 rounded-full border-slate-300 px-5 text-sm font-semibold">
+                    All features
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-6 md:p-8">
+            <div className="mx-auto min-w-0 max-w-3xl">
+              <MarketingScreenshotSlideshow slides={MARKETING_HOME_GLANCE_SLIDES} />
+            </div>
+          </CardContent>
+        </Card>
       </section>
 
       <section className="mx-auto max-w-7xl px-4 py-14 text-center sm:px-6 sm:py-20 lg:px-8">
-        <h2 className="text-2xl font-semibold text-slate-900 sm:text-3xl">Ready to go deeper?</h2>
-        <p className="mx-auto mt-3 max-w-xl text-slate-600">
-          Explore features by role, or talk to us about rollout and training.
+        <h2 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">Next step</h2>
+        <p className="mx-auto mt-3 max-w-xl text-pretty text-slate-600">
+          Create an account, or talk with us about rollout and training for your team.
         </p>
         <div className="mt-8 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:flex-wrap sm:items-center">
           <Link href="/login?mode=signup">
