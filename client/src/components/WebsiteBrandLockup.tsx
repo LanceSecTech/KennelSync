@@ -1,7 +1,7 @@
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
 
-const MARK_SRC = "/branding/kennelsync-mark.svg";
+const MARK_SRC = "/branding/kennelsync-mark.png";
 
 type WebsiteBrandLockupProps = {
   className?: string;
@@ -23,10 +23,10 @@ export function WebsiteBrandLockup({ className, variant = "header" }: WebsiteBra
     >
       <img
         src={MARK_SRC}
-        alt=""
+        alt="KennelSync Logo"
         width={32}
         height={32}
-        className={cn("shrink-0 select-none", isFooter ? "h-7 w-7" : "h-8 w-8")}
+        className={cn("shrink-0 select-none object-contain", isFooter ? "h-8 w-8" : "h-9 w-9")}
         decoding="async"
       />
       <span
