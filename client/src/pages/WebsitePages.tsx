@@ -13,7 +13,7 @@ import {
   MARKETING_HOME_GLANCE_SLIDES,
   MARKETING_HOME_HERO_SLIDES,
 } from "@/components/MarketingScreenshotSlideshow";
-import { HomepageValueCards } from "@/components/HomepageValueCards";
+import { HomepageExploreCards, HomepageExploreDetails } from "@/components/HomepageValueCards";
 
 function getAuthModeFromUrl(): "login" | "signup" {
   if (typeof window === "undefined") return "login";
@@ -61,7 +61,7 @@ export function WebsiteHome() {
         </div>
       </section>
 
-      <HomepageValueCards />
+      <HomepageExploreCards />
 
       <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-20 lg:px-8">
         <Card className="overflow-hidden rounded-3xl border-slate-200/90 bg-white shadow-[0_14px_40px_-12px_rgba(15,23,42,0.1)]">
@@ -73,7 +73,7 @@ export function WebsiteHome() {
                   A quick look inside
                 </CardTitle>
                 <p className="text-sm leading-relaxed text-slate-600 sm:text-[15px]">
-                  Swipe or use arrows—then open a section above for the story behind each role.
+                  Swipe or use arrows—Explore cards above jump to detail sections below this block.
                 </p>
               </div>
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -97,6 +97,8 @@ export function WebsiteHome() {
           </CardContent>
         </Card>
       </section>
+
+      <HomepageExploreDetails />
 
       <section className="mx-auto max-w-7xl px-4 py-14 text-center sm:px-6 sm:py-20 lg:px-8">
         <h2 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">Next step</h2>
