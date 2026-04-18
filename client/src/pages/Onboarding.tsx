@@ -21,12 +21,15 @@ import { trpc } from "@/lib/trpc";
 import { useKennel } from "@/contexts/KennelContext";
 import { getOnboardingState, saveOnboardingState, type AppRole, type OnboardingState } from "@/lib/onboarding";
 import { getCurrentDeviceLocation } from "@/lib/location";
+import { hasRealProfileName } from "@/lib/accountDisplayName";
 import { toast } from "sonner";
 
 type Props = {
   user: {
     id: string;
     email?: string | null;
+    /** From `auth.me` / `users.name` (set at signup via Supabase metadata + `auth.updateProfile`). */
+    name?: string | null;
     role: string;
     kennelId?: number | null;
     onboardingCompleted?: boolean;
@@ -126,6 +129,28 @@ export default function Onboarding({ user, onComplete }: Props) {
   useEffect(() => {
     saveOnboardingState(user.id, state);
   }, [user.id, state]);
+
+  /** Owner/employee “Basic profile”: merge `auth.me` name/email when still blank (handles `me` loading after mount). */
+  useEffect(() => {
+    if (role !== "owner" && role !== "employee") return;
+    setState((prev) => {
+      const d = prev.data;
+      const patch: Record<string, unknown> = {};
+      if (!String(d.fullName ?? "").trim() && hasRealProfileName(user)) {
+        patch.fullName = String(user.name).trim();
+      }
+      const accountEmail = String(user.email ?? "").trim();
+      if (!String(d.email ?? "").trim() && accountEmail) {
+        patch.email = accountEmail;
+      }
+      if (!Object.keys(patch).length) return prev;
+      return {
+        ...prev,
+        updatedAt: new Date().toISOString(),
+        data: { ...d, ...patch },
+      };
+    });
+  }, [role, user.id, user.name, user.email]);
 
   const pct = ((state.step + 1) / steps.length) * 100;
 
@@ -388,19 +413,36 @@ function OnboardingStep(props: {
           </div>
         );
       }
+      const accountEmailLocked = Boolean(String(email || "").trim());
+
       return (
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div>
-            <Label>Full name</Label>
-            <Input value={String(data.fullName || "")} onChange={(e) => updateData({ fullName: e.target.value })} />
-          </div>
-          <div>
-            <Label>Phone</Label>
-            <Input value={String(data.phone || "")} onChange={(e) => updateData({ phone: e.target.value })} />
-          </div>
-          <div className="sm:col-span-2">
-            <Label>Email</Label>
-            <Input value={String(data.email || email)} onChange={(e) => updateData({ email: e.target.value })} />
+        <div className="space-y-4">
+          <p className="text-sm text-slate-700">
+            Your name and sign-in email are taken from the account you just created. Add a phone number so your team
+            can reach you.
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <Label>Full name</Label>
+              <Input value={String(data.fullName || "")} onChange={(e) => updateData({ fullName: e.target.value })} />
+            </div>
+            <div>
+              <Label>Phone</Label>
+              <Input value={String(data.phone || "")} onChange={(e) => updateData({ phone: e.target.value })} />
+            </div>
+            <div className="sm:col-span-2">
+              <Label>Email</Label>
+              <Input
+                value={String(data.email || email)}
+                readOnly={accountEmailLocked}
+                aria-readonly={accountEmailLocked}
+                className={accountEmailLocked ? "bg-slate-50" : undefined}
+                onChange={accountEmailLocked ? undefined : (e) => updateData({ email: e.target.value })}
+              />
+              {accountEmailLocked ? (
+                <p className="mt-1 text-xs text-slate-500">Sign-in email (same as your account). Change it later from Settings if needed.</p>
+              ) : null}
+            </div>
           </div>
         </div>
       );
