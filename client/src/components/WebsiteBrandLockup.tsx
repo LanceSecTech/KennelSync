@@ -1,7 +1,8 @@
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
 
-const MARK_SRC = "/branding/kennelsync-mark.png";
+/** Served from Vite `publicDir` → `client/public` (URL is always root-relative to the site). */
+const LOGO_PUBLIC_PATH = "branding/kennelsync-mark.png";
 
 type WebsiteBrandLockupProps = {
   className?: string;
@@ -11,27 +12,31 @@ type WebsiteBrandLockupProps = {
 
 export function WebsiteBrandLockup({ className, variant = "header" }: WebsiteBrandLockupProps) {
   const isFooter = variant === "footer";
+  const logoSrc = `${import.meta.env.BASE_URL}${LOGO_PUBLIC_PATH}`;
 
   return (
     <Link
       href="/"
       className={cn(
-        "inline-flex min-w-0 max-w-full items-center gap-2 rounded-lg outline-offset-4 transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600",
+        "inline-flex min-w-0 max-w-full items-center gap-3 rounded-lg outline-offset-4 transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600",
         className,
       )}
       aria-label="KennelSync home"
     >
       <img
-        src={MARK_SRC}
+        src={logoSrc}
         alt="KennelSync Logo"
-        width={32}
-        height={32}
-        className={cn("shrink-0 select-none object-contain", isFooter ? "h-8 w-8" : "h-9 w-9")}
+        width={36}
+        height={36}
+        className={cn(
+          "block shrink-0 object-contain select-none",
+          isFooter ? "h-8 w-8 min-h-8 min-w-8" : "h-9 w-9 min-h-9 min-w-9",
+        )}
         decoding="async"
       />
       <span
         className={cn(
-          "truncate font-semibold tracking-wide text-emerald-700",
+          "min-w-0 truncate font-semibold tracking-wide text-emerald-700",
           isFooter ? "text-base sm:text-[17px]" : "text-lg",
         )}
       >
