@@ -1,8 +1,8 @@
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
 
-/** Served from Vite `publicDir` → `client/public` (URL is always root-relative to the site). */
-const LOGO_PUBLIC_PATH = "branding/kennelsync-mark.png";
+/** Served from Vite `publicDir` → `client/public`. */
+const LOGO_PUBLIC_PATH = "/branding/kennelsync-mark.png";
 
 type WebsiteBrandLockupProps = {
   className?: string;
@@ -12,7 +12,6 @@ type WebsiteBrandLockupProps = {
 
 export function WebsiteBrandLockup({ className, variant = "header" }: WebsiteBrandLockupProps) {
   const isFooter = variant === "footer";
-  const logoSrc = `${import.meta.env.BASE_URL}${LOGO_PUBLIC_PATH}`;
 
   return (
     <Link
@@ -24,7 +23,7 @@ export function WebsiteBrandLockup({ className, variant = "header" }: WebsiteBra
       aria-label="KennelSync home"
     >
       <img
-        src={logoSrc}
+        src={LOGO_PUBLIC_PATH}
         alt="KennelSync Logo"
         width={36}
         height={36}
