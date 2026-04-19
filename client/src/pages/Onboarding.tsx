@@ -283,7 +283,8 @@ export default function Onboarding({ user, onComplete }: Props) {
                     <Button onClick={next}>Continue</Button>
                   ) : (
                     <p className="text-xs text-slate-500 max-w-xs text-right">
-                      Subscribe or start your free trial on this step, then tap Continue.
+                      Subscribe (free for 30 days, then $50/month) or start the 7-day app trial on this step, then tap
+                      Continue.
                     </p>
                   )
                 ) : (
@@ -776,7 +777,10 @@ function OnboardingStep(props: {
           {ownerPlanBillingError ? (
             <p className="text-sm text-destructive">{ownerPlanBillingError}</p>
           ) : null}
-          <p>Start your kennel with a free trial or subscribe now.</p>
+          <p>
+            Subscribe with Stripe for free for 30 days, then $50/month. Checkout collects a payment method for renewal
+            after the trial.
+          </p>
           {billingEnforced && !canCheckout ? (
             <p className="text-xs text-amber-800 rounded-md border border-amber-200 bg-amber-50 p-2">
               Subscription checkout is not available: configure{" "}
@@ -792,14 +796,15 @@ function OnboardingStep(props: {
               disabled={ownerPlanLoading || !canCheckout}
               onClick={() => void onOwnerStartSubscription()}
             >
-              Start Subscription
+              Subscribe — free 30 days, then $50/mo
             </Button>
             <Button type="button" variant="outline" disabled={ownerPlanLoading} onClick={onOwnerSkipTrial}>
               Skip for now
             </Button>
           </div>
           <p className="text-xs text-slate-500">
-            &quot;Skip for now&quot; starts a 7-day trial. You can upgrade anytime from the dashboard or Settings.
+            &quot;Skip for now&quot; starts a separate 7-day app trial (no Stripe yet). You can subscribe anytime from the
+            dashboard or Settings for free for 30 days, then $50/month.
           </p>
         </div>
       );

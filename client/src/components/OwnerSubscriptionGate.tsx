@@ -68,8 +68,8 @@ export default function OwnerSubscriptionGate({ children }: { children: React.Re
           <div>
             <h2 className="text-lg font-semibold text-amber-950">Upgrade required</h2>
             <p className="mt-2 text-sm text-amber-900/90">
-              Your KennelSync trial has ended and there is no active subscription for this kennel. Subscribe to
-              continue managing bookings, rooms, and customers.
+              Your KennelSync trial has ended and there is no active subscription for this kennel. Subscribe for free for
+              30 days, then $50/month, to continue managing bookings, rooms, and customers.
             </p>
           </div>
           {!data.stripeConfigured || !data.subscriptionPriceConfigured ? (
@@ -80,7 +80,7 @@ export default function OwnerSubscriptionGate({ children }: { children: React.Re
           ) : null}
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
             <Button className="w-full sm:w-auto" disabled={checkout.isPending} onClick={() => void startUpgrade()}>
-              {checkout.isPending ? "Opening checkout…" : "Upgrade with Stripe"}
+              {checkout.isPending ? "Opening checkout…" : "Subscribe — free 30 days, then $50/mo"}
             </Button>
             {data.canStartAppTrial ? (
               <Button

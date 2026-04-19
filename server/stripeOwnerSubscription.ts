@@ -61,6 +61,7 @@ export async function createOwnerSubscriptionCheckoutSession(params: {
       user_id: params.userId,
     },
     subscription_data: {
+      trial_period_days: 30,
       metadata: {
         kennel_id: String(params.kennelId),
         user_id: params.userId,

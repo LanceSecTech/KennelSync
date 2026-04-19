@@ -75,7 +75,7 @@ export function OwnerSubscriptionTrialBanner({ kennelId }: { kennelId: number | 
           <div>
             <p className="text-sm font-semibold text-foreground">You&apos;re on a trial</p>
             <p className="text-xs text-muted-foreground">
-              Upgrade to continue using KennelSync after your trial ends.
+              Subscribe for free for 30 days, then $50/month, to keep uninterrupted access after your app trial ends.
             </p>
           </div>
         </div>
@@ -85,7 +85,7 @@ export function OwnerSubscriptionTrialBanner({ kennelId }: { kennelId: number | 
           disabled={checkout.isPending || !data.stripeConfigured || !data.subscriptionPriceConfigured}
           onClick={() => void upgrade()}
         >
-          {checkout.isPending ? "Opening…" : "Upgrade"}
+          {checkout.isPending ? "Opening…" : "Subscribe — free 30 days, then $50/mo"}
         </Button>
       </CardContent>
     </Card>
@@ -211,7 +211,8 @@ export function OwnerSubscriptionSettingsCard({ kennelId }: { kennelId: number |
 
           {data.showTrialBanner && data.enforced ? (
             <p className="text-xs text-muted-foreground">
-              You&apos;re in an app trial window—subscribe to keep uninterrupted access when billing is enforced.
+              You&apos;re in an app trial window—subscribe for free for 30 days, then $50/month, to keep access when
+              billing is enforced.
             </p>
           ) : null}
 
@@ -252,7 +253,7 @@ export function OwnerSubscriptionSettingsCard({ kennelId }: { kennelId: number |
               disabled={checkout.isPending || !data.stripeConfigured || !data.subscriptionPriceConfigured}
               onClick={() => void upgrade()}
             >
-              {checkout.isPending ? "Opening checkout…" : "Subscribe / upgrade"}
+              {checkout.isPending ? "Opening checkout…" : "Subscribe — free 30 days, then $50/mo"}
             </Button>
           ) : null}
         </CardContent>
