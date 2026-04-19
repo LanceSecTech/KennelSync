@@ -650,10 +650,10 @@ export function WebsiteHelp() {
         <p className="mt-3 text-slate-600">
           Email:{" "}
           <a
-            href="mailto:support@kennelsync.com"
+            href="mailto:lance@kennelsync.com"
             className="font-medium text-emerald-700 underline decoration-emerald-300 underline-offset-2 hover:text-emerald-800"
           >
-            support@kennelsync.com
+            lance@kennelsync.com
           </a>
         </p>
       </section>

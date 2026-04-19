@@ -94,7 +94,7 @@ export default function Onboarding({ user, onComplete }: Props) {
 
   const startTrialMut = trpc.ownerBilling.startTrial.useMutation({
     onSuccess: () => {
-      toast.success("Trial started — 7 days free");
+      toast.success("Free trial started");
       void utils.ownerBilling.access.invalidate();
       setState((prev) => ({
         ...prev,
@@ -283,8 +283,7 @@ export default function Onboarding({ user, onComplete }: Props) {
                     <Button onClick={next}>Continue</Button>
                   ) : (
                     <p className="text-xs text-slate-500 max-w-xs text-right">
-                      Subscribe (free for 30 days, then $50/month) or start the 7-day app trial on this step, then tap
-                      Continue.
+                      Subscribe (free for 30 days, then $50/month) or tap Start Free Trial on this step, then tap Continue.
                     </p>
                   )
                 ) : (
@@ -785,7 +784,7 @@ function OnboardingStep(props: {
             <p className="text-xs text-amber-800 rounded-md border border-amber-200 bg-amber-50 p-2">
               Subscription checkout is not available: configure{" "}
               <code className="rounded bg-amber-100 px-1">STRIPE_OWNER_SUBSCRIPTION_PRICE_ID</code> on the server, or use
-              &quot;Skip for now&quot; to start a trial. If trial start fails, add{" "}
+              Start Free Trial. If trial start fails, add{" "}
               <code className="rounded bg-amber-100 px-1">trial_ends_at</code> to <code className="rounded bg-amber-100 px-1">kennels</code>{" "}
               (see <code className="rounded bg-amber-100 px-1">MIGRATION_R30_kennel_stripe_subscription.sql</code>).
             </p>
@@ -799,12 +798,12 @@ function OnboardingStep(props: {
               Subscribe — free 30 days, then $50/mo
             </Button>
             <Button type="button" variant="outline" disabled={ownerPlanLoading} onClick={onOwnerSkipTrial}>
-              Skip for now
+              Start Free Trial
             </Button>
           </div>
           <p className="text-xs text-slate-500">
-            &quot;Skip for now&quot; starts a separate 7-day app trial (no Stripe yet). You can subscribe anytime from the
-            dashboard or Settings for free for 30 days, then $50/month.
+            Start Free Trial begins access without Stripe checkout. You can subscribe anytime from the dashboard or Settings
+            for free for 30 days, then $50/month.
           </p>
         </div>
       );

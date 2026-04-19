@@ -331,7 +331,7 @@ function OwnersBookDemoSection() {
                 Book a Demo
               </Button>
             </Link>
-            <a href="mailto:support@kennelsync.com?subject=KennelSync%20Owner%20Demo">
+            <a href="mailto:lance@kennelsync.com?subject=KennelSync%20Owner%20Demo">
               <Button
                 variant="outline"
                 className="h-12 w-full rounded-full border-white/25 bg-white/5 px-7 text-sm font-semibold text-white hover:bg-white/10 hover:text-white sm:w-auto"
@@ -622,7 +622,7 @@ export function WebsiteMarketingContact() {
         subtitle="Whether you’re evaluating software, planning rollout, or training staff—we’ll help you map a practical path forward."
       >
         <div className="flex flex-wrap gap-3">
-          <a href="mailto:support@kennelsync.com?subject=KennelSync%20Demo%20Request">
+          <a href="mailto:lance@kennelsync.com?subject=KennelSync%20Demo%20Request">
             <Button className="h-11 rounded-full bg-emerald-600 px-7 text-sm font-semibold text-white hover:bg-emerald-700">
               Email to Book a Demo
             </Button>
@@ -657,10 +657,10 @@ export function WebsiteMarketingContact() {
               <p>
                 <span className="font-medium text-slate-800">Email:</span>{" "}
                 <a
-                  href="mailto:support@kennelsync.com"
+                  href="mailto:lance@kennelsync.com"
                   className="text-emerald-700 underline decoration-emerald-300 underline-offset-2 hover:text-emerald-800"
                 >
-                  support@kennelsync.com
+                  lance@kennelsync.com
                 </a>
               </p>
               <p className="text-sm text-slate-500">

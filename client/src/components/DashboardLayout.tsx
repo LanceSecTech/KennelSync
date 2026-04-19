@@ -1,4 +1,6 @@
 import { useAuth } from "@/_core/hooks/useAuth";
+import { useKennel } from "@/contexts/KennelContext";
+import { trpc } from "@/lib/trpc";
 import { Link, useLocation } from "wouter";
 import { useEffect, useMemo } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
@@ -59,16 +61,22 @@ function TopBar({ isNative }: { isNative: boolean }) {
 
 type NavItem = { icon: typeof Home; label: string; path: string };
 
-function NavTabButton({ item, active }: { item: NavItem; active: boolean }) {
+function NavTabButton({ item, active, disableNavigation }: { item: NavItem; active: boolean; disableNavigation?: boolean }) {
   const [, navigate] = useLocation();
   const Icon = item.icon;
   return (
     <button
       type="button"
-      onClick={() => navigate(item.path)}
-      className={`flex min-w-0 max-w-[5.5rem] flex-1 flex-col items-center gap-1 rounded-lg px-2 py-2 transition-colors ${
-        active ? "bg-blue-50 text-blue-600" : "text-gray-600 hover:text-gray-900"
-      }`}
+      aria-disabled={disableNavigation}
+      onClick={() => {
+        if (disableNavigation) return;
+        navigate(item.path);
+      }}
+      className={cn(
+        "flex min-w-0 max-w-[5.5rem] flex-1 flex-col items-center gap-1 rounded-lg px-2 py-2 transition-colors",
+        disableNavigation ? "cursor-not-allowed opacity-45" : "",
+        active ? "bg-blue-50 text-blue-600" : "text-gray-600 hover:text-gray-900",
+      )}
     >
       <Icon className="h-5 w-5 shrink-0" />
       <span className="text-center text-[10px] font-medium leading-tight sm:text-xs">{item.label}</span>
@@ -76,18 +84,32 @@ function NavTabButton({ item, active }: { item: NavItem; active: boolean }) {
   );
 }
 
-function CustomerNavTabButton({ item, active }: { item: NavItem; active: boolean }) {
+function CustomerNavTabButton({
+  item,
+  active,
+  disableNavigation,
+}: {
+  item: NavItem;
+  active: boolean;
+  disableNavigation?: boolean;
+}) {
   const [, navigate] = useLocation();
   const Icon = item.icon;
   return (
     <button
       type="button"
-      onClick={() => navigate(item.path)}
-      className={`mx-auto flex min-h-[3rem] w-full max-w-[6.5rem] flex-col items-center justify-end gap-1 rounded-xl px-1 py-2 transition-all ${
+      aria-disabled={disableNavigation}
+      onClick={() => {
+        if (disableNavigation) return;
+        navigate(item.path);
+      }}
+      className={cn(
+        "mx-auto flex min-h-[3rem] w-full max-w-[6.5rem] flex-col items-center justify-end gap-1 rounded-xl px-1 py-2 transition-all",
+        disableNavigation ? "cursor-not-allowed opacity-45" : "",
         active
           ? "bg-blue-50/90 text-blue-600 shadow-sm"
-          : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 active:bg-slate-100"
-      }`}
+          : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 active:bg-slate-100",
+      )}
     >
       <Icon className="h-[1.35rem] w-[1.35rem] shrink-0 sm:h-6 sm:w-6" strokeWidth={active ? 2.25 : 2} />
       <span className="text-center text-[9px] font-semibold leading-tight tracking-tight sm:text-[11px]">
@@ -131,14 +153,17 @@ function CustomerBottomNav({
   location,
   isNative,
   role,
+  disableTabNavigation,
 }: {
   location: string;
   isNative: boolean;
   role: string;
+  disableTabNavigation?: boolean;
 }) {
   const navItems = mobileNavItemsForRole(role);
   const isMessagesActive = location.startsWith(navItems[3].path);
   const isFifthTabActive = location.startsWith(navItems[4].path);
+  const block = Boolean(disableTabNavigation);
 
   return (
     <nav
@@ -153,19 +178,31 @@ function CustomerBottomNav({
       >
         <div className="grid min-h-[3.25rem] w-full grid-cols-5 items-end gap-0">
           <div className="flex justify-center">
-            <CustomerNavTabButton item={navItems[0]} active={location.startsWith(navItems[0].path)} />
+            <CustomerNavTabButton
+              item={navItems[0]}
+              active={location.startsWith(navItems[0].path)}
+              disableNavigation={block}
+            />
           </div>
           <div className="flex justify-center">
-            <CustomerNavTabButton item={navItems[1]} active={location.startsWith(navItems[1].path)} />
+            <CustomerNavTabButton
+              item={navItems[1]}
+              active={location.startsWith(navItems[1].path)}
+              disableNavigation={block}
+            />
           </div>
           <div className="flex justify-center">
-            <CustomerNavTabButton item={navItems[2]} active={location.startsWith(navItems[2].path)} />
+            <CustomerNavTabButton
+              item={navItems[2]}
+              active={location.startsWith(navItems[2].path)}
+              disableNavigation={block}
+            />
           </div>
           <div className="flex justify-center">
-            <CustomerNavTabButton item={navItems[3]} active={isMessagesActive} />
+            <CustomerNavTabButton item={navItems[3]} active={isMessagesActive} disableNavigation={block} />
           </div>
           <div className="flex justify-center">
-            <CustomerNavTabButton item={navItems[4]} active={isFifthTabActive} />
+            <CustomerNavTabButton item={navItems[4]} active={isFifthTabActive} disableNavigation={block} />
           </div>
         </div>
       </div>
@@ -173,11 +210,26 @@ function CustomerBottomNav({
   );
 }
 
-function BottomNav({ role, isNative }: { role: string; isNative: boolean }) {
+function BottomNav({
+  role,
+  isNative,
+  disableTabNavigation,
+}: {
+  role: string;
+  isNative: boolean;
+  disableTabNavigation?: boolean;
+}) {
   const location = useLocation()[0];
 
   if (isNative) {
-    return <CustomerBottomNav location={location} isNative={isNative} role={role} />;
+    return (
+      <CustomerBottomNav
+        location={location}
+        isNative={isNative}
+        role={role}
+        disableTabNavigation={disableTabNavigation}
+      />
+    );
   }
 
   const navItems: NavItem[] =
@@ -204,7 +256,12 @@ function BottomNav({ role, isNative }: { role: string; isNative: boolean }) {
     >
       <div className="flex max-w-full items-center justify-around gap-2">
         {navItems.map((item) => (
-          <NavTabButton key={item.path} item={item} active={location === item.path} />
+          <NavTabButton
+            key={item.path}
+            item={item}
+            active={location === item.path}
+            disableNavigation={disableTabNavigation}
+          />
         ))}
       </div>
     </div>
@@ -264,8 +321,20 @@ function NativeMainTransition({
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { loading, user } = useAuth();
+  const { activeKennelId } = useKennel();
   const isNative = useMemo(() => isNativeAppClient(), []);
   const location = useLocation()[0];
+
+  const { data: ownerBillingAccess, isLoading: ownerBillingLoading } = trpc.ownerBilling.access.useQuery(
+    { kennelId: activeKennelId! },
+    { enabled: user?.role === "owner" && activeKennelId != null },
+  );
+
+  const ownerPaywallBlocksBottomNav =
+    user?.role === "owner" &&
+    activeKennelId != null &&
+    ownerBillingAccess?.enforced === true &&
+    (ownerBillingLoading || ownerBillingAccess.hasAccess === false);
 
   useEffect(() => {
     if (!isNative) return;
@@ -324,7 +393,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
       </main>
 
-      <BottomNav role={user.role} isNative={isNative} />
+      <BottomNav role={user.role} isNative={isNative} disableTabNavigation={ownerPaywallBlocksBottomNav} />
     </div>
   );
 }

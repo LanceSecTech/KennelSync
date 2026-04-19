@@ -4,10 +4,17 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
+import { useLocation } from "wouter";
+
+/** While paywalled, owners can still open Settings (and log out from the top bar). */
+function isDashboardSettingsPath(location: string): boolean {
+  return location === "/settings" || location.startsWith("/settings/") || location.startsWith("/settings?");
+}
 
 export default function OwnerSubscriptionGate({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const { activeKennelId } = useKennel();
+  const [location] = useLocation();
   const utils = trpc.useUtils();
 
   const { data, isLoading } = trpc.ownerBilling.access.useQuery(
@@ -21,7 +28,7 @@ export default function OwnerSubscriptionGate({ children }: { children: React.Re
 
   const startTrial = trpc.ownerBilling.startTrial.useMutation({
     onSuccess: () => {
-      toast.success("Trial started — 7 days free");
+      toast.success("Free trial started");
       void utils.ownerBilling.access.invalidate();
     },
     onError: (e) => toast.error(e.message || "Could not start trial"),
@@ -35,7 +42,12 @@ export default function OwnerSubscriptionGate({ children }: { children: React.Re
     return children;
   }
 
+  const settingsBypass = isDashboardSettingsPath(location);
+
   if (isLoading) {
+    if (settingsBypass) {
+      return <>{children}</>;
+    }
     return (
       <div className="flex min-h-[40vh] items-center justify-center p-8">
         <p className="text-sm text-muted-foreground">Checking your plan…</p>
@@ -45,6 +57,10 @@ export default function OwnerSubscriptionGate({ children }: { children: React.Re
 
   if (!data?.enforced || data.hasAccess) {
     return children;
+  }
+
+  if (settingsBypass) {
+    return <>{children}</>;
   }
 
   const startUpgrade = async () => {
@@ -68,8 +84,8 @@ export default function OwnerSubscriptionGate({ children }: { children: React.Re
           <div>
             <h2 className="text-lg font-semibold text-amber-950">Upgrade required</h2>
             <p className="mt-2 text-sm text-amber-900/90">
-              Your KennelSync trial has ended and there is no active subscription for this kennel. Subscribe for free for
-              30 days, then $50/month, to continue managing bookings, rooms, and customers.
+              Your KennelSync access requires an active subscription or free trial for this kennel. Subscribe or start a
+              free trial to continue managing bookings, rooms, and customers.
             </p>
           </div>
           {!data.stripeConfigured || !data.subscriptionPriceConfigured ? (
@@ -90,7 +106,7 @@ export default function OwnerSubscriptionGate({ children }: { children: React.Re
                 disabled={startTrial.isPending || checkout.isPending}
                 onClick={() => startTrial.mutate({ kennelId: activeKennelId })}
               >
-                {startTrial.isPending ? "Starting…" : "Start 7-day trial"}
+                {startTrial.isPending ? "Starting…" : "Start Free Trial"}
               </Button>
             ) : null}
             <Button
