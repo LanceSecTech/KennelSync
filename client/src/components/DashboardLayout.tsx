@@ -12,6 +12,7 @@ import {
   MessageCircle,
   Dog,
   Plus,
+  Building2,
 } from "lucide-react";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
 import OwnerSubscriptionGate from "./OwnerSubscriptionGate";
@@ -103,7 +104,7 @@ function mobileNavItemsForRole(role: string): NavItem[] {
       { icon: Calendar, label: "Bookings", path: "/bookings" },
       { icon: Dog, label: "Pets", path: "/settings?tab=owners-pets" },
       { icon: MessageCircle, label: "Messages", path: "/alerts" },
-      { icon: Settings, label: "Settings", path: "/settings" },
+      { icon: Building2, label: "Kennel", path: "/kennel" },
     ];
   }
 
@@ -137,7 +138,7 @@ function CustomerBottomNav({
 }) {
   const navItems = mobileNavItemsForRole(role);
   const isMessagesActive = location.startsWith(navItems[3].path);
-  const isSettingsActive = location.startsWith(navItems[4].path);
+  const isFifthTabActive = location.startsWith(navItems[4].path);
 
   return (
     <nav
@@ -164,7 +165,7 @@ function CustomerBottomNav({
             <CustomerNavTabButton item={navItems[3]} active={isMessagesActive} />
           </div>
           <div className="flex justify-center">
-            <CustomerNavTabButton item={navItems[4]} active={isSettingsActive} />
+            <CustomerNavTabButton item={navItems[4]} active={isFifthTabActive} />
           </div>
         </div>
       </div>
@@ -185,7 +186,7 @@ function BottomNav({ role, isNative }: { role: string; isNative: boolean }) {
           { icon: Home, label: "Dashboard", path: "/app" },
           { icon: Calendar, label: "Bookings", path: "/bookings" },
           { icon: AlertCircle, label: "Alerts", path: "/alerts" },
-          { icon: Settings, label: "Settings", path: "/settings" },
+          { icon: Building2, label: "Kennel", path: "/kennel" },
         ]
       : [
           { icon: Home, label: "Dashboard", path: "/app" },

@@ -3595,7 +3595,9 @@ export const appRouter = router({
   }),
 
   ownerBilling: router({
-    access: ownerProcedure.input(z.object({ kennelId: z.number() })).query(async ({ ctx, input }) => {
+    access: ownerProcedure
+      .input(z.object({ kennelId: z.number(), enrichFromStripe: z.boolean().optional() }))
+      .query(async ({ ctx, input }) => {
       await assertOwnerOwnsKennelId(ctx.user, input.kennelId);
       const kennel = await db.getKennelById(input.kennelId);
       const row = kennel as Record<string, unknown>;
@@ -3614,15 +3616,41 @@ export const appRouter = router({
       const { getOwnerSubscriptionPriceId } = await import("./stripeOwnerSubscription");
       const { kennelCanReceiveBookingDestinations } = await import("./stripeConnect");
       const connectRow = row;
+
+      let stripeCurrentPeriodEnd: string | null = null;
+      let stripeCancelAtPeriodEnd = false;
+      const stripeSubIdRaw = row.stripe_subscription_id ?? row.stripeSubscriptionId;
+      const stripeSubscriptionId =
+        stripeSubIdRaw != null && String(stripeSubIdRaw).trim() && !String(stripeSubIdRaw).includes("placeholder")
+          ? String(stripeSubIdRaw).trim()
+          : null;
+
+      if (input.enrichFromStripe && stripe && stripeSubscriptionId) {
+        try {
+          const subRaw = await stripe.subscriptions.retrieve(stripeSubscriptionId);
+          const sub = subRaw as unknown as { cancel_at_period_end?: boolean; current_period_end?: number };
+          stripeCancelAtPeriodEnd = Boolean(sub.cancel_at_period_end);
+          if (typeof sub.current_period_end === "number" && Number.isFinite(sub.current_period_end)) {
+            stripeCurrentPeriodEnd = new Date(sub.current_period_end * 1000).toISOString();
+          }
+        } catch (e) {
+          console.warn(`[ownerBilling.access] enrichFromStripe failed kennelId=${input.kennelId}`, e);
+        }
+      }
+
       return {
         enforced,
         hasAccess,
         subscriptionStatus: row.subscription_status ?? row.subscriptionStatus ?? null,
+        subscriptionTier: (row.subscription_tier ?? row.subscriptionTier ?? null) as string | null,
+        stripeSubscriptionId,
         trialEndsAt: row.trial_ends_at ?? row.trialEndsAt ?? null,
         showTrialBanner,
         canStartAppTrial,
         stripeConfigured: Boolean(stripe),
         subscriptionPriceConfigured: Boolean(getOwnerSubscriptionPriceId()),
+        stripeCurrentPeriodEnd,
+        stripeCancelAtPeriodEnd,
         /** Customer booking Checkout can use Connect destination (vs platform-only legacy). */
         bookingPaymentsReady: kennelCanReceiveBookingDestinations(connectRow),
         stripeConnectedAccountId:
@@ -3709,6 +3737,55 @@ export const appRouter = router({
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: msg || "Could not start trial" });
       }
       return { success: true as const, trialEndsAt: iso };
+    }),
+    createBillingPortalSession: ownerProcedure
+      .input(z.object({ kennelId: z.number(), returnUrl: z.string().min(1).max(2048) }))
+      .mutation(async ({ ctx, input }) => {
+        await assertOwnerOwnsKennelId(ctx.user, input.kennelId);
+        const { stripe } = await import("./stripe");
+        if (!stripe) {
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message: "Stripe is not configured (STRIPE_SECRET_KEY).",
+          });
+        }
+        const kennel = await db.getKennelById(input.kennelId);
+        const name = String((kennel as Record<string, unknown>).name || "Kennel");
+        const { createOwnerBillingPortalSession } = await import("./stripeOwnerSubscription");
+        const url = await createOwnerBillingPortalSession({
+          kennelId: input.kennelId,
+          userEmail: ctx.user.email,
+          kennelName: name,
+          returnUrl: input.returnUrl,
+        });
+        if (!url) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Could not open billing portal (customer creation failed).",
+          });
+        }
+        return { url };
+      }),
+    cancelSubscriptionAtPeriodEnd: ownerProcedure.input(z.object({ kennelId: z.number() })).mutation(async ({ ctx, input }) => {
+      await assertOwnerOwnsKennelId(ctx.user, input.kennelId);
+      const { stripe } = await import("./stripe");
+      if (!stripe) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: "Stripe is not configured (STRIPE_SECRET_KEY).",
+        });
+      }
+      const { cancelOwnerSaaSSubscriptionAtPeriodEnd } = await import("./stripeOwnerSubscription");
+      try {
+        const r = await cancelOwnerSaaSSubscriptionAtPeriodEnd(input.kennelId);
+        return { success: true as const, cancelAtPeriodEnd: r.cancelAtPeriodEnd, status: r.status };
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: msg || "Could not cancel subscription",
+        });
+      }
     }),
   }),
 
